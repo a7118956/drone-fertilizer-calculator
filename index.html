@@ -388,7 +388,6 @@ thead th{position:sticky;top:0;z-index:2;}
     return Number.isFinite(n) ? n : 0;
   }
   function round(n, d){
-    // Excel ROUND: half away from zero (Math.round is ok), but fix floating issues
     const f = Math.pow(10, d);
     return Math.round((n + Number.EPSILON) * f) / f;
   }
@@ -398,7 +397,7 @@ thead th{position:sticky;top:0;z-index:2;}
   }
   function fmt(n, d=2){
     if(!Number.isFinite(n)) return "0";
-    return round(n, d).toFixed(d).replace(/\.00$/,''); // keep clean
+    return round(n, d).toFixed(d).replace(/\.00$/,'');
   }
   function bagsText(kg, bagKg){
     if(bagKg<=0) return "錯誤";
@@ -407,7 +406,10 @@ thead th{position:sticky;top:0;z-index:2;}
     return `${bags} 包 + ${rest} 公斤`;
   }
 
-  // Model state
+  // === Inputs list (MUST be defined before any preset/localStorage code uses it) ===
+  const inputs = ["B4","B5","B7","D7","B8","B9","D12","B15","B16","B19","B20","B22","B23", "FERT", "FERT_OTHER"];
+
+  // Defaults
   const defaults = {
     B4: 14.42, B5: 12.8, B7: 10, D7: 3, B8: 0, B9: 3,
     D12: "追總量", B15: 2.32, B16: 13.46,
@@ -415,41 +417,31 @@ thead th{position:sticky;top:0;z-index:2;}
     FERT: "除田草", FERT_OTHER: "", autoLoadLast: true
   };
 
-
   // ===== 常用設定（Presets / localStorage） =====
   const LS_KEY = "fertcalc_presets_v1";
   const LS_FERT = "fertcalc_fertlist_v1";
   const LS_LAST = "fertcalc_last_v1";
 
-    function getAllInputs(){
+  function getAllInputs(){
     const obj = {};
-    if($("autoLoadLast")){
-    $("autoLoadLast").addEventListener("change", saveLast);
-  }
-
-  inputs.forEach(id=>{
+    inputs.forEach(id=>{
       const el = $(id);
       if(!el) return;
-      if(id==="FERT" || id==="FERT_OTHER"){
-        obj[id] = (el.value || "").toString();
-      }else{
-        obj[id] = (el.tagName==="SELECT") ? el.value : toNum(el.value);
-      }
+      if(el.tagName==="SELECT") obj[id] = el.value;
+      else obj[id] = el.value; // keep as string; compute() will parse numbers
     });
     obj["autoLoadLast"] = $("autoLoadLast") ? !!$("autoLoadLast").checked : true;
-    return obj;
-  });
     return obj;
   }
 
   function applyInputs(obj){
-    for(const id of inputs){
-      if(!(id in obj)) continue;
+    inputs.forEach(id=>{
+      if(!(id in obj)) return;
       const el = $(id);
-      if(!el) continue;
-      if(el.tagName==="SELECT") el.value = obj[id];
-      else el.value = obj[id];
-    }
+      if(!el) return;
+      el.value = obj[id];
+    });
+    if($("autoLoadLast") && ("autoLoadLast" in obj)) $("autoLoadLast").checked = !!obj.autoLoadLast;
   }
 
   function loadPresets(){
@@ -463,7 +455,6 @@ thead th{position:sticky;top:0;z-index:2;}
       return {};
     }
   }
-
   function savePresets(presets){
     localStorage.setItem(LS_KEY, JSON.stringify(presets));
   }
@@ -488,9 +479,6 @@ thead th{position:sticky;top:0;z-index:2;}
     const base = defaultFertList();
     saveFertList(base);
     return base;
-  }
-  function normalizeFertName(s){
-    return (s||"").toString().trim().replace(/\s+/g," ");
   }
   function refreshFertSelect(){
     const sel = $("FERT");
@@ -536,14 +524,6 @@ thead th{position:sticky;top:0;z-index:2;}
     });
     sel.value = (selectedKey && presets[selectedKey]) ? selectedKey : keys[0];
   }
-    keys.forEach(k=>{
-      const opt = document.createElement("option");
-      opt.value = k;
-      opt.textContent = k;
-      sel.appendChild(opt);
-    });
-    sel.value = (selectedKey && presets[selectedKey]) ? selectedKey : keys[0];
-  }
 
   function ensureDefaultPresets(){
     const presets = loadPresets();
@@ -560,22 +540,6 @@ thead th{position:sticky;top:0;z-index:2;}
     }catch(e){}
   }
 
-  function makeTimestampKey(){
-    const d = new Date();
-    const pad = (n)=>String(n).padStart(2,"0");
-    const ts = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-    return ts;
-  }
-
-  function getFertName(){
-    const sel = $("FERT") ? $("FERT").value : "";
-    if(sel==="其他"){
-      const other = ($("FERT_OTHER")?.value || "").trim();
-      return other ? other : "其他";
-    }
-    return sel || "未指定";
-  }
-
   function loadLastIfAny(){
     try{
       const raw = localStorage.getItem(LS_LAST);
@@ -589,14 +553,28 @@ thead th{position:sticky;top:0;z-index:2;}
     }
   }
 
+  function makeTimestampKey(){
+    const d = new Date();
+    const pad = (n)=>String(n).padStart(2,"0");
+    return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  }
+
+  function getFertName(){
+    const sel = $("FERT") ? $("FERT").value : "";
+    if(sel==="其他"){
+      const other = ($("FERT_OTHER")?.value || "").trim();
+      return other ? other : "其他";
+    }
+    return sel || "未指定";
+  }
 
   function setInputs(obj){
     for(const [k,v] of Object.entries(obj)){
-      if($(k)){
-        if($(k).tagName === "SELECT") $(k).value = v;
-        else $(k).value = v;
-      }
+      const el = $(k);
+      if(!el) continue;
+      el.value = v;
     }
+    if($("autoLoadLast") && ("autoLoadLast" in obj)) $("autoLoadLast").checked = !!obj.autoLoadLast;
   }
 
   function compute(){
@@ -615,44 +593,35 @@ thead th{position:sticky;top:0;z-index:2;}
     const B20 = toNum($("B20").value);
     const B22 = toNum($("B22").value);
     const B23 = toNum($("B23").value);
-    // Fertilizer type UI
+
     if($("FERT") && $("FERT_OTHER")){
       $("FERT_OTHER").style.display = ($("FERT").value==="其他") ? "block" : "none";
     }
     const fertName = getFertName();
 
-    // D4, D5
     const D4 = round(B4 * 0.687, 2);
     const D5 = round(B5 * 0.687, 2);
 
-    // B10 (note: original v4 doesn't add B8; keep exact)
     const B10 = round(D4 * B9, 2);
 
-    // D10 / D11
     const D10 = (D7===0) ? "錯誤" : fmt(B10 / D7, 2);
     const D11 = (D7===0) ? "錯誤" : `${Math.floor(B10 / D7)} 包 +${round(mod(B10, D7),1)}公斤`;
 
-    // B12 depends on mode
     const B12 = (mode==="追總量") ? round((B5===0?0:(B10 / B5)), 2) : round(B9 * 0.687, 2);
 
-    // D15 / D16
     const D15 = round(B10 + Math.max(0, B15 - B12) * B16, 2);
     const D16 = round(B10 + (B15 - B12) * B16, 2);
 
-    // D19 / D20
     const D19 = round(B19 * 0.687, 2);
     const D20 = round(B9 * D19, 2);
 
-    // B25 / D25
     const B25 = (B19===0) ? 0 : round(B20 / B19, 2);
     const D25 = round(B20 - D20, 2);
 
-    // B26 / D26 / D27
     const B26 = B12;
     const D26 = round(B12 - B25, 2);
     const D27 = round(D26 / 0.687, 2);
 
-    // Remaining
     const B34 = round(B5 - B22, 2);
     const D34 = round(B34 * 0.687, 2);
     const B35 = round(B10 - B23, 2);
@@ -667,7 +636,6 @@ thead th{position:sticky;top:0;z-index:2;}
     const B39 = (B19===0) ? 0 : round(D20 / B19, 2);
     const D39 = round(B5 * B39, 2);
 
-    // Write outputs
     if($("FERT_SHOW")) $("FERT_SHOW").textContent = fertName;
     $("D4").textContent = fmt(D4, 2);
     $("D5").textContent = fmt(D5, 2);
@@ -705,39 +673,30 @@ thead th{position:sticky;top:0;z-index:2;}
     $("B39").textContent = fmt(B39, 2);
     $("D39").textContent = fmt(D39, 2);
 
-    // Visual alerts
-    // If remaining kg negative etc.
-    if(B35 < 0){
-      $("B35").classList.add("danger");
-    }else{
-      $("B35").classList.remove("danger");
-    }
+    if(B35 < 0) $("B35").classList.add("danger");
+    else $("B35").classList.remove("danger");
   }
 
-  // Bind events
-  const inputs = ["B4","B5","B7","D7","B8","B9","D12","B15","B16","B19","B20","B22","B23", "FERT", "FERT_OTHER"];
+  // ===== Bind events =====
   inputs.forEach(id=>{
     const el = $(id);
     if(!el) return;
-    el.addEventListener("input", compute);
-    el.addEventListener("change", compute);
+    el.addEventListener("input", ()=>{ compute(); saveLast(); });
+    el.addEventListener("change", ()=>{ compute(); saveLast(); });
   });
 
-  if($("FERT")){
-    $("FERT").addEventListener("change", ()=>{ compute(); saveLast(); });
-  }
-  if($("FERT_OTHER")){
-    $("FERT_OTHER").addEventListener("input", ()=>{ compute(); saveLast(); });
+  if($("autoLoadLast")){
+    $("autoLoadLast").addEventListener("change", saveLast);
   }
 
   $("btnReset").addEventListener("click", ()=>{
     setInputs(defaults);
     refreshFertSelect();
-  compute();
+    compute();
+    saveLast();
   });
 
   $("btnCopy").addEventListener("click", async ()=>{
-    // Copy a compact summary
     const mode = $("D12").value;
     const text =
 `【無人機施肥計算摘要】
@@ -760,9 +719,9 @@ thead th{position:sticky;top:0;z-index:2;}
     }
   });
 
-
-  // Preset UI handlers
+  // ===== Preset UI handlers =====
   ensureDefaultPresets();
+  refreshFertSelect();
   refreshPresetSelect();
 
   $("btnLoadPreset").addEventListener("click", ()=>{
@@ -823,19 +782,15 @@ thead th{position:sticky;top:0;z-index:2;}
   });
 
   $("btnImportPreset").addEventListener("click", ()=>{
-    const txt = prompt("請貼上先前匯出的 JSON（取消可改用檔案匯入）：");
-    if(!txt){
-      if($("importFile")) $("importFile").click();
-      return;
-    }
+    const txt = prompt("請貼上先前匯出的 JSON：");
+    if(!txt) return;
     try{
       const obj = JSON.parse(txt);
-      if(!obj || typeof obj!=="object") throw new Error("格式錯誤");
       const name = (obj.name || "").toString().trim() || `匯入-${new Date().toLocaleString("zh-Hant")}`;
-      const data = obj.data;
-      if(!data || typeof data!=="object") throw new Error("缺少 data");
+      const item = obj.item || obj;
+      const data = item.data || item;
       const presets = loadPresets();
-      presets[name] = data;
+      presets[name] = item.data ? item : {data};
       savePresets(presets);
       refreshPresetSelect(name);
       alert(`已匯入：${name}`);
@@ -844,7 +799,6 @@ thead th{position:sticky;top:0;z-index:2;}
     }
   });
 
-  
   $("btnQuickSavePlot").addEventListener("click", ()=>{
     const ts = makeTimestampKey();
     const area = ($("B4")?.value ?? "").toString();
@@ -865,7 +819,6 @@ thead th{position:sticky;top:0;z-index:2;}
     alert(ok ? "已載入上次設定" : "尚未有上次設定可載入");
   });
 
-  // Backup to file (download)
   $("btnExportFile").addEventListener("click", ()=>{
     const presets = loadPresets();
     const payload = {exported_at:new Date().toISOString(), presets, fert_list: loadFertList() || defaultFertList()};
@@ -878,25 +831,6 @@ thead th{position:sticky;top:0;z-index:2;}
     a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
   });
-
-  // Import from file
-  $("btnImportPreset").insertAdjacentHTML("afterend", "");
-  $("btnImportPreset").addEventListener("contextmenu", (e)=>e.preventDefault());
-
-  // Reuse hidden file input
-  const importFile = $("importFile");
-  if(importFile){
-    // Clicking "匯入（貼上 JSON）" still works; long term: add file picker by tapping "匯入（貼上 JSON）" twice? We'll add a dedicated behavior:
-  }
-
-// Auto-save last inputs on any change
-  inputs.forEach(id=>{
-    const el = $(id);
-    if(!el) return;
-    el.addEventListener("input", saveLast);
-    el.addEventListener("change", saveLast);
-  });
-
 
   // init
   const auto = $("autoLoadLast") ? $("autoLoadLast").checked : true;
