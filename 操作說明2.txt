@@ -1,0 +1,94 @@
+PS C:\Windows\System32> cd C:\MISPowershell\SEPM\Report
+PS C:\MISPowershell\SEPM\Report>
+
+======================================================================
+【階段一：前置準備 (Preparation)】
+======================================================================
+
+1、匯出 SEPM 風險日誌 (人工手動)
+   ⚠️ [手動操作]
+   登入 Symantec SEPM 主控台，匯出過去一個月內的風險日誌。
+   - 格式：逗號分隔檔 (.csv)
+   - 命名規則：建議保留系統預設或命名為 risks_report_*.csv
+   - 存放位置： C:\MISPowershell\SEPM\Report\risks_report_*.csv
+
+2、確認 VirusTotal API Key
+   確保環境變數已設定 (若尚未設定，請在 PowerShell 執行)：
+   $env:VirusTotalApiKey = "您的API_KEY"
+
+
+======================================================================
+【階段二：自動化資料處理 (Auto Workflow)】
+======================================================================
+
+3、執行主流程整合腳本
+   此腳本已整合：AD 資料匯出、SEPM 報表合併、VirusTotal 掃描、Excel 美化。
+
+   PS C:\MISPowershell\SEPM\Report> .\Main-Sepm-Risk-Workflow.ps1
+
+   ➤ 互動式選項：
+      腳本啟動時會詢問：是否使用 VirusTotal 快取 (vt_cache.json)？
+      [Y] 使用快取 (預設)：節省 API 額度，速度快 (僅查詢新雜湊)。
+      [N] 不使用 (強制重查)：消耗 API 額度，確保取得最新 VirusTotal 數據。
+
+   ➤ 執行內容：
+      1. [Step 1] 匯出 AD 電腦資訊 (AD_Computers*.xlsx)
+      2. [Step 2] 匯出 AD 使用者資訊 (ADuser_department_map*.xlsx)
+      3. [Step 3] 合併 SEPM CSV 與 AD 資料 (補全發生次數、部門資訊)
+      4. [Step 4] 執行 VirusTotal 掃描、寫入惡意次數、Excel 美化 (紅底白字/格線)
+
+   ➤ 最終產出：
+      [主報表] merged_risk_report_合併_yyyymmdd_HHmm.xlsx (含 VT 結果與美化)
+      [VT詳單] virustotal_result_yyyymmdd_HHmm.xlsx
+      [快取檔] vt_cache.json
+
+
+======================================================================
+【階段三：威脅知識庫更新 (KB Sync)】
+======================================================================
+
+4、自動比對並更新威脅描述
+   讀取 CSV 檢查是否有新出現的病毒名稱，並更新知識庫。
+
+   PS C:\MISPowershell\SEPM\Report> py -3.11 5-threat_kb_auto_update.py
+
+   [情境 A] 螢幕顯示：「此次更新，無新增風險名稱。」
+       → 不需動作，直接進入下一步。
+
+   [情境 B] 螢幕顯示：「此次更新，有新增風險名稱...」
+       ⚠️ [手動操作] 請依照以下步驟處理：
+       1. 腳本會產出一個新檔案 `threat_kb_updated.json`。
+       2. 開啟該檔案，搜尋文字 "===需人工手動更新風險描述==="。
+       3. 將該段文字修改為正確的中文風險描述 (可參考 Symantec 或 VT 資訊)。
+       4. 將修訂後的內容，複製並更新回主檔案 `threat_kb.json`。
+       5. (建議) 同步更新 `6-generate_SEP_monthly_report.py` 程式碼中的 `DEFAULT_THREAT_KB` 區塊，確保程式碼內建版本也是最新的。
+       6. 完成後可刪除 `threat_kb_updated.json`。
+
+
+======================================================================
+【階段四：報表產出 (Final Reporting)】
+======================================================================
+
+5、產生 Word 月報與圖表
+   讀取整合後的 Excel，產出最終的 Word 報告 (內部版與外稽版) 及統計圖表。
+
+   PS C:\MISPowershell\SEPM\Report> py -3.11 6-generate_SEP_monthly_report.py
+
+   [讀取來源] merged_risk_report_合併_*.xlsx (由階段二產出)
+   [產出] Symantec_SEP_防毒月報_*.docx (內部版)
+   [產出] Symantec_SEP_防毒月報_*_外稽版.docx (外稽版)
+   [產出] 各類統計圖表 (.png)
+   [寄信] 若腳本設定 ENABLE_EMAIL_REPORT = True，將自動寄出郵件。
+
+   ---------------------------------------------------------------
+   ⚠️ [手動操作：Word 報表後製]
+   打開產出的 Word 檔案，進行以下檢查與調整：
+   
+   1. **插入浮水印**：
+      腳本會在首頁提示「要手動插入浮水印圖片...」。
+      請將 `wm_temp.png` (或公司規定浮水印) 插入至第一頁右下角，並刪除該段提示文字。
+
+   2. **檢查摘要與紅字**：
+      檢查「本月安全事件說明摘要」章節。
+      若腳本未能自動填寫誤判原因，請人工修改紅色標示文字，填入正確的調查結果。
+   ---------------------------------------------------------------
