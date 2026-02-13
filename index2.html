@@ -176,9 +176,11 @@ thead th{position:sticky;top:0;z-index:2;}
         <td class="label req">* 肥料種類</td>
         <td class="value">
           <select id="FERT" style="width:100%;box-sizing:border-box;font-size:16px;padding:10px 10px;border-radius:10px;border:1px solid #94a3b8;background:var(--input);">
-            <option value="除田草" selected>除田草</option>
-            <option value="尿素">尿素</option>
             <option value="複合肥">複合肥</option>
+			<option value="尿素">尿素</option>
+			<option value="複合肥+尿素">複合肥+尿素</option>
+			<option value="除田草" selected>除田草</option>
+            <option value="玉米碎粒" selected>福壽螺藥</option>
             <option value="其他">其他（自行輸入）</option>
           </select>
           <input id="FERT_OTHER" type="text" placeholder="若選其他，請輸入" style="margin-top:8px;display:none;width:100%;box-sizing:border-box;font-size:16px;padding:10px 10px;border-radius:10px;border:1px solid #94a3b8;background:white;">
@@ -498,7 +500,7 @@ thead th{position:sticky;top:0;z-index:2;}
     localStorage.setItem(LS_FERT, JSON.stringify(arr));
   }
   function defaultFertList(){
-    return ["複合肥","尿素","除田草","玉米粒","福壽螺","其他"];
+    return ["複合肥","尿素","除田草","玉米碎粒","福壽螺藥","其他"];
   }
   function ensureFertList(){
     const cur = loadFertList();
