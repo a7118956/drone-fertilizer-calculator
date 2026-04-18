@@ -1,0 +1,1290 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>無人機施肥計算器</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+    /* ── 日間 / 戶外模式：為強日照下的高對比而設計 ──
+       設計原則：
+         ① 背景保持中性深藍灰，白色卡片因對比清晰浮現
+         ② 輸入欄位：亮黃底 + 深棕色 3px 框線 → 陽光下一眼識別
+         ③ 計算結果：深翠綠 / 深紅色填充 → 高飽和度抵抗日照泛白
+         ④ 文字：近黑色；標籤色比原版深 2 級以上
+         ⑤ 陰影加重 → 卡片層次在強光下依然清楚         */
+    :root{
+      --bg:#b8cce0;
+      --card:#ffffff;
+      --grid:#7a9ab8;
+      --head:#0c2540;
+      --head-text:#ffffff;
+      --input-bg:#fffacc;
+      --input-border:#7a5800;
+      --input-focus:#1a3fd6;
+      --calc:#d4e4f0;
+      --result-bg:#065f46;
+      --result-text:#ffffff;
+      --text:#050d1a;
+      --muted:#2d4060;
+      --danger:#b91c1c;
+      --blue:#1a3fd6;
+      --accent:#0369a1;
+      --section-bg:#b3d8f0;
+      --section-border:#0369a1;
+      --shadow-sm:0 2px 8px rgba(0,0,0,.18);
+      --shadow-md:0 6px 24px rgba(0,0,0,.22);
+      --radius:10px;
+    }
+    *,*::before,*::after{box-sizing:border-box;}
+    html{scroll-behavior:smooth;}
+    body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Noto Sans TC',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang TC","Microsoft JhengHei",sans-serif;font-size:15px;line-height:1.55;-webkit-tap-highlight-color:transparent;}
+    .wrap{max-width:1020px;margin:0 auto;padding:16px 14px 40px;}
+    .header{background:linear-gradient(135deg,#1a3a5c 0%,#0d6e6e 100%);border-radius:14px;padding:20px 22px 16px;margin-bottom:0;color:#fff;box-shadow:var(--shadow-md);}
+    .header-title{font-size:22px;font-weight:900;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .pill{display:inline-block;font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.3);color:#fff;font-weight:700;}
+    .header-sub{font-size:13px;color:rgba(255,255,255,.82);line-height:1.5;margin-top:8px;}
+    .header-sub b{color:#fff;}
+    .tab-bar{display:flex;gap:0;margin-top:-1px;position:relative;z-index:1;}
+    .tab-btn{flex:1;padding:14px 10px;text-align:center;font-size:15px;font-weight:800;cursor:pointer;border:1px solid var(--grid);border-bottom:none;background:#e2e8f0;color:var(--muted);border-radius:12px 12px 0 0;transition:all .15s;}
+    .tab-btn.active{background:var(--card);color:var(--head);border-bottom:2px solid var(--card);margin-bottom:-1px;}
+    .tab-btn:not(.active):hover{background:#f1f5f9;}
+    .tab-content{display:none;}
+    .tab-content.active{display:block;}
+    .card{background:var(--card);border:1px solid var(--grid);border-radius:0 0 14px 14px;overflow:hidden;box-shadow:var(--shadow-sm);margin-bottom:14px;}
+    .card.standalone{border-radius:14px;margin-top:14px;}
+    .card-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:720px;}
+    th,td{border:1px solid var(--grid);padding:10px 10px;vertical-align:middle;word-wrap:break-word;}
+    th{background:var(--head);color:var(--head-text);font-weight:700;text-align:center;font-size:13px;letter-spacing:.5px;}
+    thead th{position:sticky;top:0;z-index:2;}
+    .section-header{background:var(--section-bg);font-weight:900;text-align:center;color:var(--head);font-size:15px;padding:12px 8px;border-left:4px solid var(--section-border);}
+    .section-header.danger-section{background:#fef2f2;color:#991b1b;border-left-color:#dc2626;}
+    td.label{font-weight:600;font-size:14px;line-height:1.4;}
+    td.label.req{color:var(--blue);font-weight:700;}
+    td.value{text-align:center;font-variant-numeric:tabular-nums;}
+    td.value input,td.value select{width:100%;box-sizing:border-box;font-size:16px;padding:10px 10px;border-radius:var(--radius);border:2px solid var(--input-border);background:var(--input-bg);outline:none;transition:border-color .2s,box-shadow .2s;font-family:inherit;}
+    td.value input:focus,td.value select:focus{border-color:var(--input-focus);box-shadow:0 0 0 3px rgba(37,99,235,.18);}
+    .calc{background:var(--calc);}
+    .res{background:var(--result-bg);color:var(--result-text);font-weight:900;font-size:18px;text-shadow:0 1px 2px rgba(0,0,0,.15);}
+    .small{font-size:12px;color:var(--muted);line-height:1.4;}
+    .danger{color:var(--danger)!important;font-weight:900;}
+    .btns{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0;}
+    button{border:1px solid var(--grid);background:#fff;border-radius:var(--radius);padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit;color:var(--text);}
+    button:hover{background:#f1f5f9;border-color:#94a3b8;}
+    button:active{transform:translateY(1px);}
+    button.btn-primary{background:var(--blue);color:#fff;border-color:var(--blue);}
+    button.btn-primary:hover{background:#1d4ed8;}
+    button.btn-clear{background:#fee2e2;color:#991b1b;border-color:#fecaca;}
+    button.btn-clear:hover{background:#fecaca;}
+    button.btn-success{background:#d1fae5;color:#065f46;border-color:#a7f3d0;}
+    button.btn-success:hover{background:#a7f3d0;}
+    .pill-badge{display:inline-block;margin-left:4px;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.2);color:var(--blue);font-weight:700;}
+    .preset-card-header{padding:14px 16px 10px;border-bottom:1px solid var(--grid);background:linear-gradient(135deg,#f8fafc,#eef2f7);}
+    .preset-card-header .card-title{font-weight:900;font-size:15px;}
+    .preset-card-body{padding:14px 16px;}
+    .preset-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:10px;align-items:end;}
+    .field-label{font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;}
+    .field-input{width:100%;font-size:15px;padding:10px 10px;border-radius:var(--radius);border:1px solid #cbd5e1;background:#fff;outline:none;font-family:inherit;transition:border-color .2s;}
+    .field-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+    .fert-section{margin-top:14px;padding-top:14px;border-top:1px dashed var(--grid);}
+    .fert-section .section-title{font-weight:900;margin-bottom:6px;font-size:14px;}
+    .fert-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;}
+    .fert-row input{flex:1;min-width:200px;}
+    .toggle-label{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--grid);border-radius:var(--radius);background:#fff;font-size:13px;font-weight:700;cursor:pointer;}
+    .toggle-label input[type="checkbox"]{width:18px;height:18px;accent-color:var(--blue);}
+    .hint{font-size:12px;color:var(--muted);line-height:1.4;margin-top:8px;}
+    .footer-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+    .reverse-input{background:#e0f2fe!important;color:#0f172a!important;font-weight:bold;border-color:#7dd3fc!important;}
+    .final-highlight{background:#991b1b!important;color:#fff!important;font-size:38px;font-weight:900;text-shadow:0 2px 4px rgba(0,0,0,.3);animation:pulse-glow 2s ease-in-out infinite;letter-spacing:.02em;}
+    @keyframes pulse-glow{0%,100%{box-shadow:inset 0 0 0 rgba(153,27,27,0);}50%{box-shadow:inset 0 0 28px rgba(153,27,27,.25),0 0 12px rgba(153,27,27,.3);}}
+    .comp-toggle{display:inline-flex;align-items:center;gap:6px;margin-top:4px;cursor:pointer;font-size:13px;font-weight:700;color:var(--blue);}
+    .comp-toggle input[type="checkbox"]{width:16px;height:16px;accent-color:var(--blue);cursor:pointer;}
+    .comp-toggle-text{font-size:12px;}
+    .comp-manual-field{background:#ffe0e0!important;border-color:#f87171!important;font-weight:900;font-size:18px!important;text-align:center;}
+    .comp-auto-active{opacity:1;}
+    .comp-auto-dimmed{opacity:.45;font-size:12px!important;text-decoration:line-through;}
+    /* Weather auto-fetch */
+    .weather-auto{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;background:rgba(14,165,233,.08);border:1px solid rgba(14,165,233,.2);font-size:12px;color:var(--accent);cursor:pointer;font-weight:700;margin-top:4px;}
+    .weather-auto:hover{background:rgba(14,165,233,.15);}
+    /* Progress bar */
+    .progress-bar{height:8px;border-radius:4px;background:#e2e8f0;overflow:hidden;margin-top:6px;}
+    .progress-fill{height:100%;border-radius:4px;transition:width .3s;}
+    .progress-ok{background:#10b981;}
+    .progress-warn{background:#f59e0b;}
+    .progress-danger{background:#ef4444;}
+
+    /* T25 Params - Sunny Field Theme */
+    .t25-sep{display:flex;align-items:center;gap:10px;margin:18px 0 10px;}
+    .t25-sep::before,.t25-sep::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,transparent,#c8deb0,transparent);}
+    .t25-sep span{font-size:12px;font-weight:800;letter-spacing:.06em;color:#3d6e2c;background:#e8f0d8;padding:3px 12px;border-radius:20px;white-space:nowrap;}
+    .t25-grid{display:flex;flex-wrap:wrap;gap:10px;}
+    .t25-field{flex:1 1 140px;min-width:0;}
+    .t25-field.t25-wide{flex:1 1 100%;}
+    .t25-field label{display:block;font-size:12px;color:#5a7a42;margin-bottom:5px;font-weight:700;}
+    .t25-unit{font-size:10.5px;color:#8a9e78;}
+    .t25-field input,.t25-field textarea{width:100%;box-sizing:border-box;background:#fff;border:2px solid #b8d4a0;border-radius:10px;color:#1a3a0e;padding:10px 12px;font-size:16px;font-weight:700;outline:none;font-family:inherit;box-shadow:inset 0 1px 3px rgba(0,0,0,.06);}
+    .t25-field input:focus,.t25-field textarea:focus{border-color:#4a8c3f;box-shadow:0 0 0 3px rgba(74,140,63,.15);}
+    .t25-field textarea{resize:vertical;min-height:56px;font-weight:500;}
+    .t25-stepper{display:flex;gap:6px;align-items:center;}
+    .t25-stepper input{text-align:center;flex:1;min-width:0;}
+    .t25-step-btn{width:48px;height:48px;border-radius:12px;background:#fff;border:2px solid #4a8c3f;color:#2d6a1e;font-size:24px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;padding:0;font-family:monospace;box-shadow:0 2px 6px rgba(0,0,0,.1);-webkit-tap-highlight-color:transparent;}
+    .t25-step-btn:active{transform:translateY(1px);background:#e8f0d8;}
+    .t25-step-btn.t25-edge{border-color:#d4a017;color:#8B6914;}
+    .t25-step-btn.t25-edge:active{background:#fff8e0;}
+    .t25-edge-input{border-color:#e8c840!important;background:#fffef5!important;}
+    /* T25 table inside card */
+    .t25-table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:680px;}
+    .t25-table th{background:#4a8c3f;color:#fff;font-weight:700;text-align:center;font-size:13px;padding:10px 8px;border:1px solid #3d7a32;}
+    .t25-table td{border:1px solid #c8deb0;padding:10px 8px;vertical-align:middle;}
+    .t25-label{font-weight:600;font-size:14px;color:#2d4a1e;}
+    .t25-req{color:#2563eb;font-weight:700;}
+    .t25-val{text-align:center;}
+    .t25-val input{width:100%;box-sizing:border-box;font-size:16px;padding:10px;border-radius:10px;border:2px solid #c9a900;background:#fffbe6;outline:none;font-family:inherit;font-weight:600;}
+    .t25-val input:focus{border-color:#4a8c3f;box-shadow:0 0 0 3px rgba(74,140,63,.15);}
+    .t25-calc{background:#f0f8e8;font-weight:600;color:#2d4a1e;text-align:center;}
+    .t25-res{background:#4a8c3f;color:#fff;font-weight:900;font-size:18px;text-align:center;text-shadow:0 1px 2px rgba(0,0,0,.15);}
+
+    /* ===== v4: Card layout ===== */
+    .fc-card{background:var(--card);border:1px solid var(--grid);border-radius:14px;margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow-sm);}
+    .fc-card-head{padding:11px 16px;font-weight:900;font-size:14px;letter-spacing:.3px;}
+    .fc-card-body{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .fc-field{display:flex;flex-direction:column;gap:5px;}
+    .fc-field.fc-full{grid-column:1/-1;}
+    .fc-label{font-size:12px;font-weight:700;color:var(--muted);line-height:1.4;}
+    .fc-label.req{color:var(--blue);}
+    .fc-input{width:100%;box-sizing:border-box;font-size:17px;padding:11px 13px;border-radius:var(--radius);border:3px solid var(--input-border);background-color:var(--input-bg);color:var(--text);outline:none;font-family:inherit;font-weight:600;transition:border-color .2s,box-shadow .2s;}
+    .fc-input:focus{border-color:var(--input-focus);box-shadow:0 0 0 4px rgba(37,99,235,.22);}
+    .fc-result{padding:11px 13px;border-radius:var(--radius);background:var(--calc);font-variant-numeric:tabular-nums;min-height:44px;font-size:17px;font-weight:700;color:var(--text);}
+    .fc-result.res{background:var(--result-bg);color:var(--result-text);font-size:22px;font-weight:900;text-shadow:0 1px 3px rgba(0,0,0,.25);letter-spacing:.02em;}
+    /* Stepper */
+    .fc-stepper{display:flex;gap:6px;align-items:center;}
+    .fc-stepper .fc-input{flex:1;min-width:0;text-align:center;}
+    .fc-step-btn{width:54px;height:54px;flex-shrink:0;border-radius:10px;border:3px solid var(--input-border);background:var(--card);color:var(--text);font-size:26px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;font-family:monospace;line-height:1;box-shadow:var(--shadow-sm);-webkit-tap-highlight-color:transparent;transition:background .1s;}
+    .fc-step-btn:active{background:var(--section-bg);transform:translateY(1px);}
+    .fc-step-btn.fc-step-blue{border-color:var(--blue);color:var(--blue);}
+    /* Accordion */
+    .accordion-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--section-bg);border-left:4px solid var(--section-border);font-weight:900;font-size:14px;color:var(--head);cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;}
+    .accordion-hdr .acc-arrow{transition:transform .25s;font-style:normal;display:inline-block;}
+    .accordion-hdr.open .acc-arrow{transform:rotate(180deg);}
+    .accordion-body{overflow:hidden;max-height:3500px;transition:max-height .35s ease;}
+    .accordion-body.collapsed{max-height:0;}
+    /* FAB */
+    .fab{position:fixed;right:18px;bottom:24px;z-index:999;width:56px;height:56px;border-radius:50%;background:var(--blue);color:#fff;border:none;box-shadow:0 4px 16px rgba(37,99,235,.4);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .25s,transform .25s;-webkit-tap-highlight-color:transparent;}
+    .fab:active{transform:scale(.95);}
+    .fab.fab-hidden{opacity:0;pointer-events:none;transform:scale(.8);}
+    @media(max-width:600px){.fc-card-body{grid-template-columns:1fr;}.fc-field.fc-full{grid-column:1;}}
+    @media(max-width:820px){.wrap{padding:12px 10px 32px;}.header{padding:16px 16px 12px;border-radius:12px;}.header-title{font-size:19px;}.preset-grid{grid-template-columns:1fr;}td.value input,td.value select{font-size:16px;padding:12px 10px;}.tab-btn{font-size:13px;padding:12px 6px;}}
+    /* ── 夜間模式 / @media(prefers-color-scheme:dark) ──────────────────
+       ① 低藍光暖色調：文字改暖米白 #dcd7c2，輸入框暗琥珀底
+       ② 輸入框框線改亮金色，強日光下好識別
+       ③ 關鍵數值仍保持高亮，但不純白以降低眼睛疲勞
+       ④ 深色背景非純黑（#07111e），避免過度對比刺眼          ──────── */
+    @media(prefers-color-scheme:dark){
+      :root{
+        --bg:#07111e;
+        --card:#0e1e33;
+        --grid:rgba(148,163,184,.22);
+        --head:#081628;
+        --head-text:#8ec4f8;
+        --input-bg:#1e1500;
+        --input-border:#d4a000;
+        --input-focus:#60a5fa;
+        --calc:rgba(255,255,255,.06);
+        --result-bg:#0d6b64;
+        --result-text:#d0ffe8;
+        --text:#dcd7c2;
+        --muted:#8492a8;
+        --danger:#f87171;
+        --blue:#7bb8fc;
+        --accent:#38bdf8;
+        --section-bg:rgba(14,165,233,.12);
+        --section-border:#0ea5e9;
+        --shadow-sm:0 2px 6px rgba(0,0,0,.4);
+        --shadow-md:0 6px 20px rgba(0,0,0,.5);
+      }
+      /* 新 v4 元件深色覆蓋 */
+      .accordion-hdr{color:var(--accent);}
+      .fc-input{color:#fef0a8;font-weight:600;}
+      .fc-step-btn{background:var(--card);border-color:var(--input-border);color:#fef0a8;}
+      .fc-result{color:var(--text);}
+      .final-highlight{background:#7f1d1d!important;color:#ffe4e4!important;text-shadow:0 1px 4px rgba(0,0,0,.5);}
+      /* 原有元件深色覆蓋 */
+      .header{background:linear-gradient(135deg,#0f2847,#0a4040);}
+      button{background:#1e293b;border-color:#334155;color:#e2e8f0;}
+      button:hover{background:#334155;}
+      button.btn-primary{background:#2563eb;border-color:#2563eb;color:#fff;}
+      button.btn-clear{background:rgba(185,28,28,.25);color:#fca5a5;border-color:#7f1d1d;}
+      button.btn-success{background:rgba(6,95,70,.3);color:#6ee7b7;border-color:#065f46;}
+      td.value input,td.value select{color:#fef0a8!important;background:var(--input-bg);border-color:var(--input-border);}
+      .field-input{background:#1e293b;border-color:#334155;color:#dcd7c2;}
+      .preset-card-header{background:linear-gradient(135deg,#0e1e33,#091628);}
+      .toggle-label{background:#1e293b;border-color:#334155;color:#dcd7c2;}
+      .reverse-input{background:#0c3a5a!important;color:#bae6fd!important;border-color:#0284c7!important;}
+      .comp-manual-field{background:#4a1515!important;border-color:#f87171!important;color:#fecaca!important;}
+      .section-header{background:var(--section-bg);color:var(--accent);}
+      .section-header.danger-section{background:rgba(220,38,38,.1);color:#f87171;}
+      .tab-btn{background:#0a1828;color:#64748b;border-color:rgba(148,163,184,.15);}
+      .tab-btn.active{background:var(--card);color:var(--accent);}
+      .weather-auto{background:rgba(56,189,248,.1);border-color:rgba(56,189,248,.2);color:#38bdf8;}
+      .progress-bar{background:#1e304a;}
+      select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23fef0a8%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");background-repeat:no-repeat;background-position:right .7em top 50%;background-size:.65em auto;}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="header-title">🚁 無人機施肥計算器 <span class="pill">v4.2</span></div>
+    <div class="header-sub">藍色欄位＝必填；所有計算結果即時更新。<b>追總量</b>確保總公斤數達標；<b>按標準</b>追求均勻施用。</div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab-btn active" data-tab="tab-main">🚁 施肥計算</div>
+    <div class="tab-btn" data-tab="tab-bufei">🌾 補肥計算</div>
+    <div class="tab-btn" data-tab="tab-t25">⚙ T25 參數</div>
+  </div>
+
+  <!-- ==================== TAB 1: 施肥計算 ==================== -->
+  <div id="tab-main" class="tab-content active">
+
+  <!-- CARD 1: 基本參數 -->
+  <div class="fc-card">
+    <div class="fc-card-head" style="background:var(--head);color:var(--head-text);">⚙️ 基本參數</div>
+    <div class="fc-card-body">
+      <div class="fc-field">
+        <div class="fc-label req">* 地塊面積（畝）</div>
+        <input id="B4" type="number" step="0.01" min="0" class="fc-input">
+      </div>
+      <div class="fc-field">
+        <div class="fc-label">地塊面積（畝換算分）</div>
+        <div class="fc-result" id="D4"></div>
+      </div>
+      <div class="fc-field">
+        <div class="fc-label req">* 作業面積（畝）</div>
+        <input id="B5" type="number" step="0.01" min="0" class="fc-input">
+      </div>
+      <div class="fc-field">
+        <div class="fc-label">作業面積（畝換算分）</div>
+        <div class="fc-result" id="D5"></div>
+      </div>
+      <div class="fc-field">
+        <div class="fc-label req">* 一甲地需要下幾包肥？</div>
+        <input id="B7" type="number" step="1" min="0" value="10" class="fc-input">
+      </div>
+      <div class="fc-field">
+        <div class="fc-label req">* 每包肥料重量（公斤）</div>
+        <input id="D7" type="number" step="0.1" min="0" value="40" class="fc-input">
+      </div>
+      <div class="fc-field">
+        <div class="fc-label req">* 額外加肥重量（公斤）</div>
+        <input id="B8" type="number" step="0.1" min="0" class="fc-input">
+      </div>
+      <div class="fc-field">
+        <div class="fc-label req">* 每分地施肥用量（公斤）</div>
+        <input id="B9" type="number" step="0.01" min="0" value="40" class="fc-input">
+      </div>
+      <div class="fc-field">
+        <div class="fc-label req">* 肥料種類</div>
+        <select id="FERT" class="fc-input">
+          <option value="複合肥" selected>複合肥</option>
+          <option value="尿素">尿素</option>
+          <option value="複合肥+尿素">複合肥+尿素</option>
+          <option value="除田草">除田草</option>
+          <option value="福壽螺藥">福壽螺藥</option>
+          <option value="其他">其他</option>
+        </select>
+        <input id="FERT_OTHER" type="text" placeholder="自行輸入" class="fc-input" style="margin-top:6px;display:none;">
+      </div>
+      <div class="fc-field">
+        <div class="fc-label">* 模式選擇</div>
+        <select id="D12" class="fc-input">
+          <option value="追總量">追總量（陰天）</option>
+          <option value="按標準" selected>按標準（晴天）</option>
+        </select>
+      </div>
+      <div class="fc-field fc-full">
+        <label class="toggle-label" style="margin-top:4px;cursor:pointer;">
+          <input id="SPREADER_COMP_TOGGLE" type="checkbox">
+          <span style="font-size:14px;font-weight:700;">啟用播撒損耗補償 +6%</span>
+          <span style="font-weight:400;color:var(--muted);font-size:12px;margin-left:4px;">（☁️ 陰天 / 🌧️ 毛毛雨 時建議勾選）</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARD 2: 計算結果 -->
+  <div class="fc-card">
+    <div class="fc-card-head" style="background:var(--result-bg);color:var(--result-text);">📊 計算結果</div>
+    <div class="fc-card-body" style="background:var(--calc);">
+      <div class="fc-field">
+        <div class="fc-label">施肥總公斤數（公斤）</div>
+        <div class="fc-result res" id="B10"></div>
+      </div>
+      <div class="fc-field">
+        <div class="fc-label">需要肥料包數</div>
+        <div class="fc-result" id="D11"></div>
+      </div>
+      <div class="fc-field">
+        <div class="fc-label">播撒畝用量（公斤/畝）</div>
+        <div class="fc-result res" id="B12"></div>
+      </div>
+      <div class="fc-field">
+        <div class="fc-label">肥料種類</div>
+        <div class="fc-result" id="FERT_SHOW"></div>
+      </div>
+      <div class="fc-field fc-full" id="B12_COMP_ROW">
+        <div class="fc-label" style="font-weight:800;color:#7a5800;">🎯 遙控器建議設定值（含損耗補償）<span id="B12_COMP_PCT_LABEL" style="font-weight:400;color:var(--muted);font-size:11px;margin-left:6px;"></span></div>
+        <div class="fc-result" id="B12_COMP" style="background:#7a5800;color:#fffacc;font-size:22px;font-weight:900;text-align:center;letter-spacing:.03em;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCORDION 1: 飛行確認書 -->
+  <div class="fc-card">
+    <div class="accordion-hdr open" id="acc-flight-hdr" onclick="toggleAcc('acc-flight','acc-flight-hdr')">
+      飛行確認書（每次返航後填寫）
+      <i class="acc-arrow">▼</i>
+    </div>
+    <div class="accordion-body" id="acc-flight">
+      <div class="fc-card-body">
+        <div class="fc-field">
+          <div class="fc-label">現場天氣</div>
+          <select id="WEATHER_TYPE" class="fc-input">
+            <option value="晴天" selected>☀️ 晴天</option>
+            <option value="陰天">☁️ 陰天</option>
+            <option value="毛毛雨">🌧️ 毛毛雨</option>
+          </select>
+        </div>
+        <div class="fc-field">
+          <div class="fc-label">溫度 ／ 濕度</div>
+          <div class="fc-result" style="font-size:14px;">🌡️ <span id="ENV_TEMP_SHOW">--</span>°C ／ 💧 <span id="ENV_HUMIDITY_SHOW">--</span>%</div>
+          <span class="weather-auto" id="btnGetWeather" style="margin-top:6px;">📍 自動取得現場天氣</span>
+          <div id="WEATHER_STATUS" style="font-size:12px;margin-top:4px;color:var(--muted);"></div>
+        </div>
+        <div class="fc-field fc-full">
+          <div class="fc-label req">* 已作業面積（畝）<span style="font-weight:400;color:var(--muted);margin-left:6px;font-size:11px;">遙控器「共作業」的畝數</span></div>
+          <div class="fc-stepper">
+            <button type="button" class="fc-step-btn" onclick="fcAdj('B22',-0.1)">−</button>
+            <input id="B22" type="number" step="0.01" min="0" value="0" class="fc-input">
+            <button type="button" class="fc-step-btn" onclick="fcAdj('B22',0.1)">+</button>
+          </div>
+        </div>
+        <div class="fc-field fc-full">
+          <div class="fc-label req">* 已播撒用料量（千克）<span style="font-weight:400;color:var(--muted);margin-left:6px;font-size:11px;">遙控器「共作業」的千克數</span></div>
+          <div class="fc-stepper">
+            <button type="button" class="fc-step-btn" onclick="fcAdj('B23',-1)">−</button>
+            <input id="B23" type="number" step="0.01" min="0" value="0" class="fc-input">
+            <button type="button" class="fc-step-btn" onclick="fcAdj('B23',1)">+</button>
+          </div>
+        </div>
+        <div class="fc-field fc-full">
+          <div class="fc-label">尚需作業面積（畝）<span class="pill-badge" style="margin-left:6px;">可手動修正</span></div>
+          <div class="fc-stepper">
+            <button type="button" class="fc-step-btn fc-step-blue" onclick="fcAdj('REMAIN_AREA',-0.1)">−</button>
+            <input id="REMAIN_AREA" type="number" step="0.01" class="fc-input reverse-input">
+            <button type="button" class="fc-step-btn fc-step-blue" onclick="fcAdj('REMAIN_AREA',0.1)">+</button>
+          </div>
+        </div>
+        <div class="fc-field fc-full">
+          <div class="fc-label">尚需播撒用料（千克）<span class="pill-badge" style="margin-left:6px;">可手動修正</span></div>
+          <div class="fc-stepper">
+            <button type="button" class="fc-step-btn fc-step-blue" onclick="fcAdj('REMAIN_KG',-0.1)">−</button>
+            <input id="REMAIN_KG" type="number" step="0.01" class="fc-input reverse-input">
+            <button type="button" class="fc-step-btn fc-step-blue" onclick="fcAdj('REMAIN_KG',0.1)">+</button>
+          </div>
+        </div>
+        <div class="fc-field fc-full">
+          <div class="fc-label">尚需肥料包數</div>
+          <div class="fc-result" id="REMAIN_BAGS"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCORDION 2: 作業進度 -->
+  <div class="fc-card">
+    <div class="accordion-hdr open" id="acc-progress-hdr" onclick="toggleAcc('acc-progress','acc-progress-hdr')">
+      📊 作業進度與剩餘需求
+      <i class="acc-arrow">▼</i>
+    </div>
+    <div class="accordion-body" id="acc-progress">
+      <div class="fc-card-body">
+        <div class="fc-field">
+          <div class="fc-label">作業進度</div>
+          <div class="fc-result" id="PROGRESS_PCT" style="font-size:22px;font-weight:900;"></div>
+        </div>
+        <div class="fc-field">
+          <div class="fc-label">實測畝用量（公斤/畝）<br><span style="font-weight:400;">= 已用料 ÷ 已作業面積</span></div>
+          <div class="fc-result" id="ACTUAL_RATE" style="font-weight:900;"></div>
+        </div>
+        <div class="fc-field fc-full">
+          <div class="progress-bar"><div class="progress-fill" id="PROGRESS_BAR" style="width:0%;"></div></div>
+        </div>
+        <div class="fc-field fc-full">
+          <div class="fc-label">與設定值偏差</div>
+          <div class="fc-result" id="RATE_DIFF"></div>
+        </div>
+        <div class="fc-field fc-full">
+          <div class="fc-label" style="font-weight:800;color:var(--text);">按目前進度，總量能否達標？</div>
+          <div class="fc-result" id="TARGET_STATUS" style="font-weight:900;font-size:14px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 下次飛行設定建議 -->
+  <div class="fc-card" style="border-color:#fecaca;">
+    <div class="fc-card-head" style="background:#fef2f2;color:#991b1b;border-left:4px solid #dc2626;">🎯 下次飛行設定建議</div>
+    <div class="fc-card-body">
+      <div class="fc-field fc-full">
+        <div onclick="toggleAcc('acc-comp','acc-comp-hdr')" id="acc-comp-hdr" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:8px 10px;border-radius:var(--radius);background:var(--calc);border:1px solid var(--grid);user-select:none;-webkit-tap-highlight-color:transparent;">
+          <span style="font-size:13px;font-weight:700;color:var(--muted);">⚙️ 進階：手動覆蓋補償比例</span>
+          <i id="acc-comp-arrow" style="font-style:normal;font-size:12px;color:var(--muted);transition:transform .25s;">▼</i>
+        </div>
+        <div id="acc-comp" style="overflow:hidden;max-height:0;transition:max-height .35s ease;">
+          <div style="padding-top:10px;">
+            <div class="fc-label">補償比例（%）<span style="font-weight:400;color:var(--muted);font-size:11px;margin-left:4px;">預設不補償</span></div>
+            <label class="comp-toggle" style="margin-top:6px;">
+              <input id="COMP_MANUAL_TOGGLE" type="checkbox">
+              <span class="comp-toggle-text">手動覆蓋（需要額外加減%時才勾選）</span>
+            </label>
+            <div id="COMP_AUTO_DISPLAY" style="font-weight:bold;color:var(--blue);font-size:14px;margin-top:6px;"></div>
+            <input id="COMP_MANUAL_INPUT" type="number" step="0.1" value="0" style="display:none;margin-top:8px;" class="fc-input comp-manual-field">
+            <div id="COMP_REF_NOTE" class="small" style="margin-top:8px;display:none;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="fc-field fc-full">
+        <div style="font-weight:900;font-size:15px;color:#991b1b;">👉 下次播撒畝用量（公斤/畝）</div>
+        <div id="FINAL_FORMULA_NOTE" class="small" style="margin-top:2px;">= 剩餘肥料 ÷ 剩餘面積</div>
+        <div class="fc-result final-highlight" id="FINAL_SETTING" style="font-size:32px;text-align:center;margin-top:6px;"></div>
+      </div>
+      <div class="fc-field fc-full">
+        <div style="font-weight:900;font-size:15px;color:#065f46;">播撒畝用量（公斤/畝）（B12）</div>
+        <div class="small" style="margin-top:2px;">首次起飛前，你要在遙控器上設定的「播撒用量」初始值。</div>
+        <div id="B12_BOTTOM" style="background:#10b981;color:#fff;font-weight:900;font-size:22px;text-align:center;border-radius:var(--radius);padding:12px;text-shadow:0 1px 2px rgba(0,0,0,.15);margin-top:6px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden fields for internal storage -->
+  <input type="hidden" id="ENV_TEMP"><input type="hidden" id="ENV_HUMIDITY">
+  <input type="hidden" id="B15" value="2.32"><input type="hidden" id="B16" value="13.46">
+
+  <!-- Preset Card -->
+  <div class="card standalone">
+    <div class="preset-card-header">
+      <div class="card-title">💾 常用設定（本機儲存）</div>
+      <div class="small" style="margin-top:4px;line-height:1.5;">
+        把目前所有輸入值存成一組「預設」，下次作業同一塊田時一鍵載入，不用重新輸入面積、肥料參數等。<br>
+        不同田塊可存不同名稱（例如：「王先生-水稻田A」「李大哥-玉米田」），方便切換。<br>
+        首次使用時系統會自動建立「預設-追總量（建議）」作為範本。
+      </div>
+    </div>
+    <div class="preset-card-body">
+      <div class="preset-grid">
+        <div><div class="field-label">選擇預設</div><select id="presetSelect" class="field-input"></select></div>
+        <div><div class="field-label">新預設名稱</div><input id="presetName" type="text" placeholder="例如：玉米田A" class="field-input"></div>
+      </div>
+      <div class="btns" style="margin-top:10px;">
+        <button type="button" id="btnLoadPreset">📂 載入</button>
+        <button type="button" id="btnSavePreset" class="btn-primary">💾 儲存</button>
+        <button type="button" id="btnDeletePreset" class="btn-clear">🗑️ 刪除</button>
+        <button type="button" id="btnExportFile">📦 備份</button>
+        <button type="button" id="btnImportFile">📂 還原</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none;">
+      </div>
+      <div style="margin-top:8px;"><label class="toggle-label"><input id="autoLoadLast" type="checkbox" checked>開啟時自動載入上次設定</label></div>
+      <div class="fert-section">
+        <div class="section-title">🧪 肥料種類清單</div>
+        <div class="fert-row">
+          <input id="fertListAdd" type="text" placeholder="輸入肥料名稱" class="field-input">
+          <button type="button" id="btnAddFert" class="btn-success">+ 加入</button>
+          <button type="button" id="btnRemoveFert" class="btn-clear">移除</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer-btns">
+    <button type="button" id="btnReset">🔁 重設範例值</button>
+    <button type="button" id="btnClear" class="btn-clear">🧹 智慧清除</button>
+    <button type="button" id="btnCopy" class="btn-primary">📋 複製摘要</button>
+  </div>
+  </div>
+
+  <!-- ==================== TAB 2: 補肥計算 ==================== -->
+  <div id="tab-bufei" class="tab-content">
+  <div class="card">
+    <div class="card-scroll">
+    <table>
+      <colgroup><col style="width:34%"><col style="width:16%"><col style="width:34%"><col style="width:16%"></colgroup>
+      <thead><tr><th>欄位名稱</th><th>數值 / 輸入</th><th>欄位名稱</th><th>數值 / 結果</th></tr></thead>
+      <tbody>
+      <tr>
+        <td class="label req">* 地塊面積（畝）</td>
+        <td class="value"><input id="BF_B4" type="number" step="0.01" min="0"></td>
+        <td class="label">地塊面積（畝換算分）</td>
+        <td class="value calc" id="BF_D4"></td>
+      </tr>
+      <tr>
+        <td class="label req">* 作業面積（畝）</td>
+        <td class="value"><input id="BF_B5" type="number" step="0.01" min="0"></td>
+        <td class="label">作業面積（畝換算分）</td>
+        <td class="value calc" id="BF_D5"></td>
+      </tr>
+      <tr><td colspan="4" class="section-header" style="border-left-color:#d97706;">🌾 補肥需求（農民告知）</td></tr>
+      <tr>
+        <td class="label req">* 補肥方式</td>
+        <td class="value"><select id="BF_MODE"><option value="bags" selected>一分地補幾包肥</option><option value="kg">一分地補幾公斤肥</option></select></td>
+        <td class="label req">* 數量</td>
+        <td class="value"><input id="BF_QTY" type="number" step="0.1" min="0" placeholder="例：1 或 15"></td>
+      </tr>
+      <tr>
+        <td class="label req">* 每包肥料重量（公斤）</td>
+        <td class="value">
+          <select id="BF_BAGKG"><option value="5">5</option><option value="10">10</option><option value="15">15</option><option value="20" selected>20</option><option value="25">25</option><option value="30">30</option><option value="35">35</option><option value="40">40</option><option value="custom">自訂</option></select>
+          <input id="BF_BAGKG_CUSTOM" type="number" step="0.1" min="0" placeholder="自訂" style="margin-top:8px;display:none;">
+        </td>
+        <td class="label"></td>
+        <td class="value calc" id="BF_BAGKG_SHOW"></td>
+      </tr>
+      <tr><td colspan="4" class="section-header" style="border-left-color:#0d9488;">📊 補肥計算結果</td></tr>
+      <tr>
+        <td class="label">每分地補肥（公斤/分）</td>
+        <td class="value res" id="BF_KG_PER_FEN"></td>
+        <td class="label">補肥總公斤數（公斤）</td>
+        <td class="value res" id="BF_TOTAL_KG"></td>
+      </tr>
+      <tr>
+        <td class="label">需要肥料包數</td>
+        <td class="value calc" id="BF_BAGS"></td>
+        <td class="label"></td>
+        <td class="value calc" id="BF_BAGS_DETAIL"></td>
+      </tr>
+      <tr>
+        <td class="label" style="background:#fef2f2;color:#991b1b;font-weight:900;">👉 遙控器播撒畝用量（公斤/畝）</td>
+        <td class="value final-highlight" id="BF_MU_RATE" style="font-size:22px;"></td>
+        <td class="label"><div class="small"><b>追總量公式：</b>補肥總公斤 ÷ 作業面積</div></td>
+        <td class="value calc"></td>
+      </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <div class="footer-btns">
+    <button type="button" id="btnBfClear" class="btn-clear">🧹 清除</button>
+    <button type="button" id="btnBfCopy" class="btn-primary">📋 複製摘要</button>
+  </div>
+  </div>
+
+  <!-- ==================== TAB 3: DJI T25 撒肥參數 ==================== -->
+  <div id="tab-t25" class="tab-content">
+  <div class="card" style="border-radius:14px;background:#faf6e8;border-color:#d4c78a;">
+    <div style="padding:16px;">
+
+      <!-- 田塊資訊 -->
+      <div class="t25-sep"><span>🌾 田塊資訊</span></div>
+      <div class="t25-field t25-wide">
+        <label>田塊名稱</label>
+        <input id="T_fieldName" type="text" placeholder="例：北區二號田">
+      </div>
+
+      <!-- 施肥計算表格 -->
+      <div class="card-scroll" style="margin-top:10px;">
+      <table class="t25-table">
+        <colgroup><col style="width:34%"><col style="width:16%"><col style="width:34%"><col style="width:16%"></colgroup>
+        <thead><tr><th>欄位名稱</th><th>數值 / 輸入</th><th>欄位名稱</th><th>數值 / 結果</th></tr></thead>
+        <tbody>
+        <tr>
+          <td class="t25-label t25-req">* 地塊面積（畝）</td>
+          <td class="t25-val"><input id="T_B4" type="number" step="0.01" min="0"></td>
+          <td class="t25-label">地塊面積（畝換算分）</td>
+          <td class="t25-val t25-calc" id="T_D4"></td>
+        </tr>
+        <tr>
+          <td class="t25-label t25-req">* 作業面積（畝）</td>
+          <td class="t25-val"><input id="T_B5" type="number" step="0.01" min="0"></td>
+          <td class="t25-label">作業面積（畝換算分）</td>
+          <td class="t25-val t25-calc" id="T_D5"></td>
+        </tr>
+        <tr>
+          <td class="t25-label t25-req">* 一甲地需要下幾包肥？</td>
+          <td class="t25-val"><input id="T_B7" type="number" step="1" min="0" value="10"></td>
+          <td class="t25-label t25-req">* 每包肥料重量（公斤）</td>
+          <td class="t25-val"><input id="T_D7" type="number" step="0.1" min="0" value="40"></td>
+        </tr>
+        <tr>
+          <td class="t25-label t25-req">* 額外加肥重量（公斤）</td>
+          <td class="t25-val"><input id="T_B8" type="number" step="0.1" min="0"></td>
+          <td class="t25-label t25-req">* 每分地施肥用量（公斤）</td>
+          <td class="t25-val"><input id="T_B9" type="number" step="0.01" min="0" value="40"></td>
+        </tr>
+        <tr>
+          <td class="t25-label t25-req">* 肥料種類</td>
+          <td class="t25-val">
+            <select id="T_fertName" style="width:100%;box-sizing:border-box;font-size:16px;padding:10px;border-radius:10px;border:2px solid #c9a900;background:#fffbe6;font-family:inherit;font-weight:600;">
+              <option value="複合肥" selected>複合肥</option>
+              <option value="尿素">尿素</option>
+              <option value="複合肥+尿素">複合肥+尿素</option>
+              <option value="除田草">除田草</option>
+              <option value="福壽螺藥">福壽螺藥</option>
+              <option value="其他">其他</option>
+            </select>
+          </td>
+          <td class="t25-label t25-req">* 模式選擇</td>
+          <td class="t25-val" style="font-weight:700;color:#2d6a1e;text-align:center;">追總量</td>
+        </tr>
+        <tr>
+          <td class="t25-label" style="font-weight:800;">施肥總公斤數（公斤）</td>
+          <td class="t25-val t25-res" id="T_B10"></td>
+          <td class="t25-label">需要肥料包數</td>
+          <td class="t25-val t25-calc" id="T_D11"></td>
+        </tr>
+        <tr>
+          <td class="t25-label" style="font-weight:800;">播撒畝用量（公斤/畝）</td>
+          <td class="t25-val t25-res" id="T_B12"></td>
+          <td class="t25-label"><div style="font-size:12px;color:#8a7a42;">此為遙控器「播撒用量」初始設定值</div></td>
+          <td class="t25-val t25-calc" id="T_fertShow"></td>
+        </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <!-- 正常航線參數 -->
+      <div class="t25-sep"><span>✈️ 正常航線參數</span></div>
+      <div class="t25-grid">
+        <div class="t25-field">
+          <label>播撒盤轉速 <span class="t25-unit">(rpm)</span></label>
+          <div class="t25-stepper">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_rpm',-10)">−</button>
+            <input id="T_rpm" type="number" step="10" min="0" value="920">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_rpm',10)">+</button>
+          </div>
+        </div>
+        <div class="t25-field">
+          <label>飛行速度 <span class="t25-unit">(m/s)</span></label>
+          <div class="t25-stepper">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_speed',-0.1)">−</button>
+            <input id="T_speed" type="number" step="0.1" min="0" value="5.0">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_speed',0.1)">+</button>
+          </div>
+        </div>
+        <div class="t25-field">
+          <label>飛行高度 <span class="t25-unit">(m)</span></label>
+          <div class="t25-stepper">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_height',-0.1)">−</button>
+            <input id="T_height" type="number" step="0.1" min="0" value="3.0">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_height',0.1)">+</button>
+          </div>
+        </div>
+        <div class="t25-field">
+          <label>行距 <span class="t25-unit">(m)</span></label>
+          <div class="t25-stepper">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_swath',-0.1)">−</button>
+            <input id="T_swath" type="number" step="0.1" min="0" value="5.0">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_swath',0.1)">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="t25-field t25-wide" style="margin-top:8px;">
+        <label>速度備註</label>
+        <input id="T_speedNote" type="text" value="畝用量越大，飛行速度相對會變慢" placeholder="例：畝用量越大速度越慢">
+      </div>
+
+      <!-- 掃邊 -->
+      <div class="t25-sep"><span>🔄 掃邊 / 邊界航線</span></div>
+      <div class="t25-grid">
+        <div class="t25-field">
+          <label>掃邊轉速 <span class="t25-unit">(rpm)</span></label>
+          <div class="t25-stepper">
+            <button type="button" class="t25-step-btn t25-edge" onclick="t25Adj('T_rpmEdge',-10)">−</button>
+            <input id="T_rpmEdge" type="number" step="10" min="0" value="680" class="t25-edge-input">
+            <button type="button" class="t25-step-btn t25-edge" onclick="t25Adj('T_rpmEdge',10)">+</button>
+          </div>
+        </div>
+        <div class="t25-field">
+          <label>掃邊內縮 <span class="t25-unit">(m)</span></label>
+          <div class="t25-stepper">
+            <button type="button" class="t25-step-btn t25-edge" onclick="t25Adj('T_inset',-0.1)">−</button>
+            <input id="T_inset" type="number" step="0.1" min="0" value="1.6" class="t25-edge-input">
+            <button type="button" class="t25-step-btn t25-edge" onclick="t25Adj('T_inset',0.1)">+</button>
+          </div>
+        </div>
+        <div class="t25-field">
+          <label>掃邊模式</label>
+          <input id="T_scanMode" type="text" value="自動掃邊" class="t25-edge-input">
+        </div>
+      </div>
+
+      <!-- 畝用量 -->
+      <div class="t25-sep"><span>⊙ 畝用量設定</span></div>
+      <div class="t25-grid">
+        <div class="t25-field">
+          <label>畝用量 <span class="t25-unit">(kg/畝)</span></label>
+          <div class="t25-stepper">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_ratePerMu',-0.1)">−</button>
+            <input id="T_ratePerMu" type="number" step="0.1" min="0" value="10">
+            <button type="button" class="t25-step-btn" onclick="t25Adj('T_ratePerMu',0.1)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 備註 -->
+      <div class="t25-sep"><span>📝 備註</span></div>
+      <div class="t25-field t25-wide">
+        <label>其他備註</label>
+        <textarea id="T_note" rows="2" placeholder="其他注意事項..."></textarea>
+      </div>
+
+      <!-- 按鈕 -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px;">
+        <button type="button" id="btnT25Preview" style="flex:1;min-width:140px;padding:16px;font-size:15px;font-weight:800;background:linear-gradient(135deg,#4A8C3F,#6BAF5B);color:#fff;border:none;border-radius:12px;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(60,100,40,.25);">👁 預覽圖片</button>
+        <button type="button" id="btnT25Export" style="flex:1;min-width:140px;padding:16px;font-size:15px;font-weight:800;background:linear-gradient(135deg,#d4a017,#e8c840);color:#5D4037;border:none;border-radius:12px;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(200,160,40,.25);">📸 匯出 PNG</button>
+        <button type="button" id="btnT25Clear" style="padding:16px;font-size:15px;font-weight:800;background:#fce4ec;color:#991b1b;border:1px solid #f8bbd0;border-radius:12px;cursor:pointer;font-family:inherit;">🧹 清除</button>
+      </div>
+
+      <!-- 預覽區 -->
+      <div id="t25PreviewArea" style="display:none;margin-top:16px;text-align:center;">
+        <img id="t25PreviewImg" style="max-width:100%;border-radius:12px;border:2px solid #d4c78a;box-shadow:0 4px 16px rgba(0,0,0,.1);">
+        <div style="font-size:12px;color:#8a7a42;margin-top:8px;">長按圖片可儲存，或點擊「匯出 PNG」下載。</div>
+      </div>
+
+    </div>
+  </div>
+  </div>
+
+</div>
+
+<!-- FAB: 快速跳到已作業面積 -->
+<button type="button" class="fab" id="fabQuickUpdate" title="快速跳到已作業面積" aria-label="快速更新">✈️</button>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  function toNum(v){const n=Number(v);return Number.isFinite(n)?n:0;}
+  function round(n,d){const f=Math.pow(10,d);return Math.round((n+Number.EPSILON)*f)/f;}
+  function mod(n,m){if(m===0)return 0;return((n%m)+m)%m;}
+  function fmt(n,d=2){if(!Number.isFinite(n))return"0";return round(n,d).toFixed(d).replace(/\.00$/,'');}
+  function bagsText(kg,bk){if(bk<=0)return"錯誤";return`${Math.floor(kg/bk)} 包 + ${round(mod(kg,bk),1)} 公斤`;}
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(b=>{b.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(x=>x.classList.remove('active'));b.classList.add('active');$(b.dataset.tab).classList.add('active');});});
+
+  // ===== Main =====
+  const inputs=["B4","B5","B7","D7","B8","B9","D12","B15","B16","WEATHER_TYPE","ENV_TEMP","ENV_HUMIDITY","B22","B23","REMAIN_AREA","REMAIN_KG","FERT","FERT_OTHER","COMP_MANUAL_INPUT"];
+  const defaults={B4:"",B5:"",B7:10,D7:40,B8:"",B9:40,D12:"按標準",B15:2.32,B16:13.46,WEATHER_TYPE:"晴天",ENV_TEMP:"",ENV_HUMIDITY:"",B22:0,B23:0,REMAIN_AREA:0,REMAIN_KG:0,FERT:"複合肥",FERT_OTHER:"",COMP_MANUAL_INPUT:0,COMP_MANUAL_TOGGLE:false,SPREADER_COMP_TOGGLE:false,autoLoadLast:true};
+  const LS_KEY="fertcalc_presets_v1",LS_FERT="fertcalc_fertlist_v1",LS_LAST="fertcalc_last_v1";
+
+  function getAllInputs(){const o={};inputs.forEach(id=>{const el=$(id);if(!el)return;o[id]=el.value;});o.autoLoadLast=$("autoLoadLast")?!!$("autoLoadLast").checked:true;o.COMP_MANUAL_TOGGLE=$("COMP_MANUAL_TOGGLE")?!!$("COMP_MANUAL_TOGGLE").checked:false;o.SPREADER_COMP_TOGGLE=$("SPREADER_COMP_TOGGLE")?!!$("SPREADER_COMP_TOGGLE").checked:false;return o;}
+  function applyInputs(o){inputs.forEach(id=>{if(!(id in o))return;const el=$(id);if(!el)return;el.value=o[id];});if($("autoLoadLast")&&("autoLoadLast" in o))$("autoLoadLast").checked=!!o.autoLoadLast;if($("COMP_MANUAL_TOGGLE")&&("COMP_MANUAL_TOGGLE" in o)){$("COMP_MANUAL_TOGGLE").checked=!!o.COMP_MANUAL_TOGGLE;updateCompToggleUI();}if($("SPREADER_COMP_TOGGLE")&&("SPREADER_COMP_TOGGLE" in o))$("SPREADER_COMP_TOGGLE").checked=!!o.SPREADER_COMP_TOGGLE;}
+  function loadPresets(){try{const r=localStorage.getItem(LS_KEY);if(!r)return{};const d=JSON.parse(r);return(typeof d==="object"&&d!==null)?d:{};}catch(e){return{};}}
+  function savePresets(p){localStorage.setItem(LS_KEY,JSON.stringify(p));}
+  function loadFertList(){try{const r=localStorage.getItem(LS_FERT);if(!r)return null;const a=JSON.parse(r);return Array.isArray(a)?a:null;}catch(e){return null;}}
+  function saveFertList(a){localStorage.setItem(LS_FERT,JSON.stringify(a));}
+  function defaultFertList(){return["複合肥","尿素","複合肥+尿素","除田草","福壽螺藥","其他"];}
+  function ensureFertList(){const c=loadFertList();if(c&&c.length)return c;const b=defaultFertList();saveFertList(b);return b;}
+  function refreshFertSelect(){const s=$("FERT");if(!s)return;const l=ensureFertList(),c=s.value;s.innerHTML="";l.forEach(n=>{const o=document.createElement("option");o.value=n;o.textContent=n;s.appendChild(o);});if(l.includes(c))s.value=c;else s.value=l[0]||"其他";if($("FERT_OTHER"))$("FERT_OTHER").style.display=(s.value==="其他")?"block":"none";}
+  function refreshPresetSelect(sk=null){const s=$("presetSelect");if(!s)return;const p=loadPresets(),keys=Object.keys(p).sort((a,b)=>a.localeCompare(b,"zh-Hant"));s.innerHTML="";if(!keys.length){const o=document.createElement("option");o.value="";o.textContent="（尚無預設）";s.appendChild(o);return;}keys.forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=k;s.appendChild(o);});s.value=(sk&&p[sk])?sk:keys[0];}
+  function ensureDefaultPresets(){const p=loadPresets();if(Object.keys(p).length>0)return;const n=new Date().toISOString();p["預設-追總量（建議）"]={data:{...defaults,D12:"追總量"},meta:{created_at:n,last_used:null,use_count:0}};savePresets(p);}
+  function saveLast(){try{localStorage.setItem(LS_LAST,JSON.stringify(getAllInputs()));}catch(e){}}
+  function loadLastIfAny(){try{const r=localStorage.getItem(LS_LAST);if(!r)return false;const o=JSON.parse(r);if(typeof o!=="object"||o===null)return false;applyInputs(o);return true;}catch(e){return false;}}
+  function makeTS(){const d=new Date(),p=n=>String(n).padStart(2,"0");return`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;}
+  function getFertName(){const s=$("FERT")?$("FERT").value:"";if(s==="其他")return($("FERT_OTHER")?.value||"").trim()||"其他";return s||"未指定";}
+  function updateCompToggleUI(){const m=$("COMP_MANUAL_TOGGLE")&&$("COMP_MANUAL_TOGGLE").checked,a=$("COMP_AUTO_DISPLAY"),i=$("COMP_MANUAL_INPUT");if(!a||!i)return;if(m){i.style.display="block";a.className="comp-auto-dimmed";}else{i.style.display="none";a.className="comp-auto-active";}}
+
+  // ===== Core compute =====
+  function compute(skipRemain=false){
+    const B4=toNum($("B4").value),B5=toNum($("B5").value);
+    const D7=toNum($("D7").value),B8=toNum($("B8").value),B9=toNum($("B9").value);
+    const mode=$("D12").value;
+    const B22=toNum($("B22").value),B23=toNum($("B23").value);
+    if($("FERT")&&$("FERT_OTHER"))$("FERT_OTHER").style.display=($("FERT").value==="其他")?"block":"none";
+
+    const D4=round(B4*0.687,2),D5=round(B5*0.687,2);
+    const B10=round((D4*B9)+B8,2);
+    const D11=(D7===0)?"錯誤":bagsText(B10,D7);
+    const B12=(mode==="追總量")?round((B5===0?0:(B10/B5)),2):round(B9*0.687,2);
+
+    // 自動計算剩餘（若非手動修正觸發，才覆寫）
+    const autoRemainArea=round(B5-B22,2);
+    const autoRemainKg=round(B10-B23,2);
+    if(!skipRemain){
+      $("REMAIN_AREA").value=autoRemainArea;
+      $("REMAIN_KG").value=autoRemainKg;
+    }
+
+    // 讀取當前值（可能是自動算的，也可能是手動修正的）
+    const remainArea=toNum($("REMAIN_AREA").value);
+    const remainKg=toNum($("REMAIN_KG").value);
+
+    // 實測畝用量
+    const actualRate=(B22>0)?round(B23/B22,2):0;
+    const rateDiff=(B22>0)?round(actualRate-B12,2):0;
+    const progressPct=(B5>0)?Math.min(round(B22/B5*100,1),100):0;
+
+    // 基礎需求畝用量（用手動修正後的值）
+    const B36=(remainArea>0)?round((mode==="追總量"?(remainKg/remainArea):B12),2):0;
+
+    // 補償（預設不補償，僅手動覆蓋時才套用）
+    let autoComp=0,compSrc="";
+    if(B22>0&&B23>0&&actualRate>0){
+      autoComp=round(((B12/actualRate)-1)*100,1);
+      compSrc=" (實測反算)";
+    }else{compSrc=" (無實測)";}
+
+    const isMC=$("COMP_MANUAL_TOGGLE")&&$("COMP_MANUAL_TOGGLE").checked;
+    let compPct=0; // 預設不補償
+    if(isMC) compPct=toNum($("COMP_MANUAL_INPUT").value);
+
+    // 顯示系統參考值（無論是否勾選手動，有實測就顯示）
+    const ad=$("COMP_AUTO_DISPLAY");
+    if(ad){
+      if(B22>0&&actualRate>0){
+        ad.textContent="系統："+(autoComp>0?"+":"")+autoComp+"%"+compSrc;
+      } else {
+        ad.textContent="";
+      }
+    }
+    // 手動覆蓋時，顯示詳細參考備註
+    const refNote=$("COMP_REF_NOTE");
+    if(refNote){
+      if(isMC && B22>0 && actualRate>0){
+        refNote.style.display="block";
+        refNote.innerHTML=`📊 系統參考值：<b style="color:var(--blue);">${autoComp>0?"+":""}${autoComp}%${compSrc}</b><br>（播撒畝用量 ${fmt(B12,2)} ÷ 實測畝用量 ${fmt(actualRate,2)} - 1）× 100%`;
+      } else if(isMC){
+        refNote.style.display="block";
+        refNote.textContent="尚無實測數據可供參考";
+      } else {
+        refNote.style.display="none";
+      }
+    }
+
+    // 公式備註
+    const formulaNote=$("FINAL_FORMULA_NOTE");
+    if(formulaNote){
+      if(isMC && compPct!==0){
+        formulaNote.textContent=`= 剩餘肥料 ÷ 剩餘面積 ×（1 + ${compPct}%）`;
+      } else {
+        formulaNote.textContent="= 剩餘肥料 ÷ 剩餘面積";
+      }
+    }
+
+    const finalSetting=round(B36*(1+compPct/100),2);
+
+    // 達標判斷
+    let targetMsg="",targetColor="";
+    if(B22>0&&B5>0){
+      const projectedTotal=round(actualRate*B5,2); // 按目前畝用量推算全部做完的總量
+      const diff=round(projectedTotal-B10,2);
+      if(Math.abs(diff)<B10*0.05){targetMsg="✅ 預估可達標（誤差<5%）";targetColor="#15803d";}
+      else if(projectedTotal<B10){targetMsg=`⚠️ 預估少 ${fmt(Math.abs(diff),1)} kg，需調高畝用量`;targetColor="#d97706";}
+      else{targetMsg=`📈 預估多 ${fmt(diff,1)} kg，可微降畝用量`;targetColor="#2563eb";}
+    }
+
+    // 進度條顏色
+    const bar=$("PROGRESS_BAR");
+    if(bar){
+      bar.style.width=progressPct+"%";
+      bar.className="progress-fill "+(progressPct>=90?"progress-ok":progressPct>=50?"progress-warn":"progress-danger");
+    }
+
+    // Output
+    $("D4").textContent=fmt(D4,2);$("D5").textContent=fmt(D5,2);
+    $("B10").textContent=fmt(B10,2);$("D11").textContent=D11;
+    $("B12").textContent=fmt(B12,2);
+    if($("B12_BOTTOM"))$("B12_BOTTOM").textContent=fmt(B12,2);
+    if($("FERT_SHOW"))$("FERT_SHOW").textContent=getFertName();
+    // 播撒損耗補償
+    const spreaderComp=$("SPREADER_COMP_TOGGLE")&&$("SPREADER_COMP_TOGGLE").checked?6:0;
+    const B12Comp=round(B12*(1+spreaderComp/100),2);
+    if($("B12_COMP"))$("B12_COMP").textContent=fmt(B12Comp,2)+" 公斤/畝";
+    if($("B12_COMP_ROW"))$("B12_COMP_ROW").style.display=(spreaderComp===0)?"none":"flex";
+    if($("B12_COMP_PCT_LABEL"))$("B12_COMP_PCT_LABEL").textContent=spreaderComp>0?"補償 +"+spreaderComp+"%":"";
+    $("PROGRESS_PCT").textContent=progressPct+"%";
+    $("ACTUAL_RATE").textContent=(B22>0)?fmt(actualRate,2):"--";
+    if($("RATE_DIFF")){
+      if(B22>0&&rateDiff<-0.01){$("RATE_DIFF").style.color="#d97706";$("RATE_DIFF").innerHTML=fmt(rateDiff,2)+" (偏慢)";}
+      else if(B22>0&&rateDiff>0.01){$("RATE_DIFF").style.color="#15803d";$("RATE_DIFF").innerHTML="+"+fmt(rateDiff,2)+" (偏快)";}
+      else{$("RATE_DIFF").style.color="var(--text)";$("RATE_DIFF").textContent=B22>0?"0 (正常)":"--";}
+    }
+    // REMAIN_AREA and REMAIN_KG are inputs, already set above
+    if(remainKg<0)$("REMAIN_KG").classList.add("danger");else $("REMAIN_KG").classList.remove("danger");
+    $("REMAIN_BAGS").textContent=(D7>0)?bagsText(Math.max(0,remainKg),D7):"";
+    $("TARGET_STATUS").textContent=targetMsg;$("TARGET_STATUS").style.color=targetColor;
+    $("FINAL_SETTING").textContent=fmt(finalSetting,2);
+  }
+
+  // Events
+  inputs.forEach(id=>{const el=$(id);if(!el)return;
+    if(id==="REMAIN_AREA"){
+      el.addEventListener("input",()=>{
+        // 手動修正尚需面積 → 反算已作業面積
+        const totalArea=toNum($("B5").value);
+        $("B22").value=round(totalArea-toNum($("REMAIN_AREA").value),2);
+        compute(true);saveLast();
+      });
+    } else if(id==="REMAIN_KG"){
+      el.addEventListener("input",()=>{
+        // 手動修正尚需用料 → 反算已播撒用料
+        const D4=round(toNum($("B4").value)*0.687,2);
+        const totalKg=round((D4*toNum($("B9").value))+toNum($("B8").value),2);
+        $("B23").value=round(totalKg-toNum($("REMAIN_KG").value),2);
+        compute(true);saveLast();
+      });
+    } else {
+      el.addEventListener("input",()=>{compute();saveLast();});
+      el.addEventListener("change",()=>{compute();saveLast();});
+    }
+  });
+  if($("autoLoadLast"))$("autoLoadLast").addEventListener("change",saveLast);
+  if($("COMP_MANUAL_TOGGLE"))$("COMP_MANUAL_TOGGLE").addEventListener("change",()=>{updateCompToggleUI();compute();saveLast();});
+  if($("COMP_MANUAL_INPUT"))$("COMP_MANUAL_INPUT").addEventListener("input",()=>{compute();saveLast();});
+  if($("SPREADER_COMP_TOGGLE"))$("SPREADER_COMP_TOGGLE").addEventListener("change",()=>{compute();saveLast();});
+
+  // Weather auto-fetch via GPS + Open-Meteo
+  $("btnGetWeather").addEventListener("click",()=>{
+    $("WEATHER_STATUS").textContent="定位中...";
+    if(!navigator.geolocation){$("WEATHER_STATUS").textContent="❌ 此裝置不支援定位";return;}
+    navigator.geolocation.getCurrentPosition(async pos=>{
+      try{
+        const lat=pos.coords.latitude,lon=pos.coords.longitude;
+        $("WEATHER_STATUS").textContent="取得天氣中...";
+        const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m`);
+        const d=await r.json();
+        const temp=d.current.temperature_2m;
+        const hum=d.current.relative_humidity_2m;
+        $("ENV_TEMP").value=temp;$("ENV_HUMIDITY").value=hum;
+        $("ENV_TEMP_SHOW").textContent=round(temp,1);
+        $("ENV_HUMIDITY_SHOW").textContent=Math.round(hum);
+        $("WEATHER_STATUS").textContent=`✅ ${new Date().toLocaleTimeString("zh-Hant",{hour:"2-digit",minute:"2-digit"})} 更新`;
+        saveLast();
+      }catch(e){$("WEATHER_STATUS").textContent="❌ 天氣取得失敗";}
+    },err=>{$("WEATHER_STATUS").textContent="❌ 定位失敗："+err.message;},{enableHighAccuracy:true,timeout:10000});
+  });
+
+  // Reset & Clear
+  $("btnReset").addEventListener("click",()=>{applyInputs(defaults);refreshFertSelect();compute();saveLast();});
+  $("btnClear").addEventListener("click",()=>{
+    if(!confirm("清除作業數據？\n（包數/包重/每分用量/斜率/模式/肥料/天氣 → 回復預設值）"))return;
+    const keep=["B7","D7","B9","D12","B16","FERT","WEATHER_TYPE"];
+    inputs.forEach(id=>{const el=$(id);if(!el)return;if(keep.includes(id))el.value=defaults[id];else{if(el.tagName==="SELECT")el.selectedIndex=0;else el.value="";}});
+    if($("FERT_OTHER")){$("FERT_OTHER").value="";$("FERT_OTHER").style.display="none";}
+    if($("COMP_MANUAL_TOGGLE"))$("COMP_MANUAL_TOGGLE").checked=false;
+    if($("COMP_MANUAL_INPUT"))$("COMP_MANUAL_INPUT").value="0";
+    if($("SPREADER_COMP_TOGGLE"))$("SPREADER_COMP_TOGGLE").checked=false;
+    $("ENV_TEMP_SHOW").textContent="--";$("ENV_HUMIDITY_SHOW").textContent="--";$("WEATHER_STATUS").textContent="";
+    updateCompToggleUI();compute();saveLast();
+  });
+
+  // Copy
+  $("btnCopy").addEventListener("click",async()=>{
+    const t=$("ENV_TEMP").value,h=$("ENV_HUMIDITY").value;
+    const text=`【施肥摘要】\n模式：${$("D12").value}｜肥料：${getFertName()}｜天氣：${$("WEATHER_TYPE").value}${t?" "+t+"°C":""}${h?" "+h+"%":""}\n地塊：${$("B4").value}畝｜作業：${$("B5").value}畝\n總需求：${$("B10").textContent}kg｜畝用量：${$("B12").textContent}\n已作業：${$("B22").value}畝｜已用料：${$("B23").value}kg\n進度：${$("PROGRESS_PCT").textContent}｜實測畝用量：${$("ACTUAL_RATE").textContent}\n剩餘：${$("REMAIN_AREA").value}畝/${$("REMAIN_KG").value}kg\n達標：${$("TARGET_STATUS").textContent}\n🎯 下次播撒畝用量：${$("FINAL_SETTING").textContent} 公斤/畝`;
+    try{await navigator.clipboard.writeText(text);alert("已複製");}catch(e){alert(text);}
+  });
+
+  // Presets
+  ensureDefaultPresets();refreshFertSelect();refreshPresetSelect();
+  $("btnLoadPreset").addEventListener("click",()=>{const k=$("presetSelect").value,p=loadPresets();if(!k||!p[k]){alert("沒有可載入的預設");return;}applyInputs(p[k].data||p[k]);if(p[k].meta){p[k].meta.last_used=new Date().toISOString();p[k].meta.use_count=(p[k].meta.use_count||0)+1;savePresets(p);refreshPresetSelect(k);}compute();saveLast();alert(`已載入：${k}`);});
+  $("btnSavePreset").addEventListener("click",()=>{const nm=($("presetName").value||"").trim(),sk=$("presetSelect").value,p=loadPresets();let k;if(nm){if(p[nm]&&!confirm(`覆蓋「${nm}」？`))return;k=nm;}else if(sk&&p[sk]){if(!confirm(`覆蓋「${sk}」？`))return;k=sk;}else k=`預設_${makeTS()}`;p[k]={data:getAllInputs(),meta:{created_at:new Date().toISOString(),last_used:null,use_count:0}};savePresets(p);refreshPresetSelect(k);$("presetName").value="";saveLast();alert(`已儲存：${k}`);});
+  $("btnDeletePreset").addEventListener("click",()=>{const k=$("presetSelect").value,p=loadPresets();if(!k||!p[k]){alert("沒有可刪除的預設");return;}if(!confirm(`刪除「${k}」？`))return;delete p[k];savePresets(p);refreshPresetSelect();alert("已刪除");});
+  $("btnExportFile").addEventListener("click",()=>{const p=loadPresets(),d={exported_at:new Date().toISOString(),presets:p,fert_list:loadFertList()||defaultFertList()};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=`fertcalc_backup_${makeTS()}.json`;document.body.appendChild(a);a.click();a.remove();});
+  $("btnImportFile").addEventListener("click",()=>{$("importFile").click();});
+  $("importFile").addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const o=JSON.parse(ev.target.result);if(o.presets){const p=loadPresets();let c=0;for(const[k,v]of Object.entries(o.presets)){p[k]=v;c++;}savePresets(p);if(Array.isArray(o.fert_list)&&o.fert_list.length){saveFertList(o.fert_list);refreshFertSelect();}refreshPresetSelect();alert(`還原 ${c} 組！`);}else alert("格式無法辨識");}catch(err){alert("解析失敗");}};r.readAsText(f);e.target.value="";});
+  $("btnAddFert").addEventListener("click",()=>{const v=($("fertListAdd")?.value||"").trim();if(!v)return;const l=ensureFertList();if(!l.includes(v)){l.unshift(v);saveFertList(l);refreshFertSelect();$("fertListAdd").value="";alert(`已加入：${v}`);}else alert("已有此名稱");});
+  $("btnRemoveFert").addEventListener("click",()=>{const v=$("FERT").value;if(!v||v==="其他"){alert("無法移除");return;}if(!confirm(`移除「${v}」？`))return;let l=ensureFertList();l=l.filter(x=>x!==v);saveFertList(l);refreshFertSelect();});
+
+  // ===== 補肥計算 =====
+  function computeBufei(){
+    const B4=toNum($("BF_B4").value),B5=toNum($("BF_B5").value);
+    const mode=$("BF_MODE").value,qty=toNum($("BF_QTY").value);
+    const bagSel=$("BF_BAGKG").value;
+    const bagKg=(bagSel==="custom")?toNum($("BF_BAGKG_CUSTOM").value):toNum(bagSel);
+    $("BF_BAGKG_CUSTOM").style.display=(bagSel==="custom")?"block":"none";
+    $("BF_BAGKG_SHOW").textContent=bagKg>0?bagKg+" 公斤":"";
+    const D4=round(B4*0.687,2),D5=round(B5*0.687,2);
+    $("BF_D4").textContent=fmt(D4,2);$("BF_D5").textContent=fmt(D5,2);
+    const kgPerFen=(mode==="bags")?round(qty*bagKg,2):round(qty,2);
+    const totalKg=round(kgPerFen*D4,2);
+    const muRate=(B5>0)?round(totalKg/B5,2):0;
+    $("BF_KG_PER_FEN").textContent=fmt(kgPerFen,2);
+    $("BF_TOTAL_KG").textContent=fmt(totalKg,2);
+    $("BF_BAGS").textContent=(bagKg>0)?Math.ceil(totalKg/bagKg):"";
+    $("BF_BAGS_DETAIL").textContent=(bagKg>0)?bagsText(totalKg,bagKg):"";
+    $("BF_MU_RATE").textContent=fmt(muRate,2);
+  }
+  ["BF_B4","BF_B5","BF_QTY","BF_BAGKG_CUSTOM"].forEach(id=>{const el=$(id);if(el)el.addEventListener("input",computeBufei);});
+  ["BF_MODE","BF_BAGKG"].forEach(id=>{const el=$(id);if(el)el.addEventListener("change",computeBufei);});
+  $("btnBfClear").addEventListener("click",()=>{["BF_B4","BF_B5","BF_QTY","BF_BAGKG_CUSTOM"].forEach(id=>{if($(id))$(id).value="";});$("BF_MODE").selectedIndex=0;$("BF_BAGKG").value="20";computeBufei();});
+  $("btnBfCopy").addEventListener("click",async()=>{const t=`【補肥摘要】\n地塊：${$("BF_B4").value}畝｜作業：${$("BF_B5").value}畝\n每分地補：${$("BF_KG_PER_FEN").textContent} kg\n總量：${$("BF_TOTAL_KG").textContent} kg（${$("BF_BAGS_DETAIL").textContent}）\n👉 畝用量：${$("BF_MU_RATE").textContent} 公斤/畝`;try{await navigator.clipboard.writeText(t);alert("已複製");}catch(e){alert(t);}});
+
+  // Init
+  const auto=$("autoLoadLast")?$("autoLoadLast").checked:true;
+  if(auto)loadLastIfAny();
+  // 恢復天氣顯示
+  if($("ENV_TEMP").value)$("ENV_TEMP_SHOW").textContent=$("ENV_TEMP").value;
+  if($("ENV_HUMIDITY").value)$("ENV_HUMIDITY_SHOW").textContent=$("ENV_HUMIDITY").value;
+  updateCompToggleUI();
+  document.querySelectorAll("input[type='number']").forEach(el=>{el.addEventListener("click",function(){this.select();});});
+  compute();computeBufei();
+
+  /* ===== v4: Stepper ===== */
+  window.fcAdj=function(id,step){
+    const el=$(id);if(!el)return;
+    const cur=parseFloat(el.value)||0;
+    const prec=(Math.abs(step)<1)?2:0;
+    const next=Math.max(0,parseFloat((cur+step).toFixed(4)));
+    el.value=prec>0?next.toFixed(prec):String(Math.round(next));
+    el.dispatchEvent(new Event('input',{bubbles:true}));
+  };
+
+  /* ===== v4: Accordion ===== */
+  window.toggleAcc=function(bodyId,hdrId){
+    const body=$(bodyId),hdr=$(hdrId);if(!body||!hdr)return;
+    // 支援 accordion-body class 或 inline max-height
+    const isInline=!body.classList.contains('accordion-body');
+    if(isInline){
+      const open=body.style.maxHeight&&body.style.maxHeight!=='0px'&&body.style.maxHeight!=='';
+      body.style.maxHeight=open?'0':'800px';
+      // arrow
+      const arrow=$(hdrId.replace('-hdr','-arrow'))||hdr.querySelector('i');
+      if(arrow)arrow.style.transform=open?'':'rotate(180deg)';
+    } else {
+      body.classList.toggle('collapsed');
+      hdr.classList.toggle('open');
+    }
+  };
+
+  /* ===== v4: FAB quick-update ===== */
+  (function initFab(){
+    const fab=$('fabQuickUpdate');if(!fab)return;
+    // Show FAB only on tab-main
+    function updateFabVisibility(){
+      const mainActive=$('tab-main')&&$('tab-main').classList.contains('active');
+      fab.classList.toggle('fab-hidden',!mainActive);
+    }
+    updateFabVisibility();
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+      b.addEventListener('click',()=>setTimeout(updateFabVisibility,50));
+    });
+    fab.addEventListener('click',()=>{
+      // 1. Switch to tab-main
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+      const mainBtn=document.querySelector('.tab-btn[data-tab="tab-main"]');
+      if(mainBtn)mainBtn.classList.add('active');
+      $('tab-main').classList.add('active');
+      updateFabVisibility();
+      // 2. 清空返航輸入欄位（只清畫面值，不觸發計算）
+      ['B22','B23','REMAIN_AREA','REMAIN_KG'].forEach(id=>{
+        const el=$(id);if(el)el.value='';
+      });
+      // 3. Expand 飛行確認書 accordion
+      const fb=$('acc-flight'),fbh=$('acc-flight-hdr');
+      if(fb&&fb.classList.contains('collapsed')){fb.classList.remove('collapsed');if(fbh)fbh.classList.add('open');}
+      // 3. Scroll to B22 and focus after transition
+      setTimeout(()=>{
+        const ra=$('B22');if(!ra)return;
+        ra.scrollIntoView({behavior:'smooth',block:'center'});
+        setTimeout(()=>{ra.focus();ra.select();},180);
+      },80);
+    });
+  })();
+
+  /* ===== v4: Enter → next field ===== */
+  document.addEventListener('keydown',function(e){
+    if(e.key!=='Enter')return;
+    const el=e.target;
+    if(el.tagName!=='INPUT')return;
+    const skipTypes=['hidden','checkbox','radio','file','button','submit','reset'];
+    if(skipTypes.includes(el.type))return;
+    e.preventDefault();
+    // Collect all visible, non-collapsed inputs and selects
+    const candidates=Array.from(document.querySelectorAll(
+      'input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]),select'
+    )).filter(inp=>{
+      if(inp.offsetParent===null)return false;
+      let p=inp.parentElement;
+      while(p){if(p.classList&&p.classList.contains('accordion-body')&&p.classList.contains('collapsed'))return false;p=p.parentElement;}
+      return true;
+    });
+    const idx=candidates.indexOf(el);
+    if(idx>=0&&idx<candidates.length-1){const nx=candidates[idx+1];nx.focus();if(typeof nx.select==='function')nx.select();}
+  },true);
+
+  /* ===== T25 撒肥參數 ===== */
+  window.t25Adj=function(id,step){
+    const el=$(id);if(!el)return;
+    const cur=parseFloat(el.value)||0;
+    const prec=Math.abs(step)<1?1:0;
+    const next=Math.max(0,cur+step);
+    el.value=prec>0?next.toFixed(prec):String(Math.round(next));
+    computeT25();
+  };
+
+  function computeT25(){
+    const B4=toNum($("T_B4").value),B5=toNum($("T_B5").value);
+    const D7=toNum($("T_D7").value),B8=toNum($("T_B8").value),B9=toNum($("T_B9").value);
+    const D4=round(B4*0.687,2),D5=round(B5*0.687,2);
+    const B10=round((D4*B9)+B8,2);
+    const D11=(D7===0)?"錯誤":bagsText(B10,D7);
+    const B12=(B5===0)?0:round(B10/B5,2);
+    $("T_D4").textContent=fmt(D4,2);
+    $("T_D5").textContent=fmt(D5,2);
+    $("T_B10").textContent=fmt(B10,2);
+    $("T_D11").textContent=D11;
+    $("T_B12").textContent=fmt(B12,2);
+    if($("T_fertShow"))$("T_fertShow").textContent=$("T_fertName").value||"";
+  }
+
+  // Bind T25 table inputs
+  ["T_B4","T_B5","T_B7","T_D7","T_B8","T_B9","T_fertName"].forEach(id=>{
+    const el=$(id);if(!el)return;
+    el.addEventListener("input",computeT25);
+    el.addEventListener("change",computeT25);
+  });
+
+  function getT25Data(){
+    return{
+      fieldName:$("T_fieldName").value||"",
+      fieldArea:$("T_B4").value||"",
+      workArea:$("T_B5").value||"",
+      perFenKg:$("T_B9").value||"",
+      fertName:$("T_fertName").value||"",
+      ratePerMu:$("T_ratePerMu").value||"",
+      b12:$("T_B12")?$("T_B12").textContent:"",
+      speed:$("T_speed").value||"5",
+      height:$("T_height").value||"3",
+      rpm:$("T_rpm").value||"920",
+      swath:$("T_swath").value||"5",
+      rpmEdge:$("T_rpmEdge").value||"680",
+      inset:$("T_inset").value||"1.6",
+      scanMode:$("T_scanMode").value||"",
+      speedNote:$("T_speedNote").value||"",
+      note:$("T_note").value||""
+    };
+  }
+
+  function drawT25(d,dateStr){
+    const S=2,W=540,pad=28,cw=W-pad*2;
+    let h=80+60+36+82*2+10; /* added 60 for field info */
+    if(d.speedNote)h+=46;
+    h+=42+82+24+120;
+    if(d.note)h+=52;
+    h+=58+40+pad*2;
+    const H=h;
+    const canvas=document.createElement("canvas");
+    canvas.width=W*S;canvas.height=H*S;
+    const ctx=canvas.getContext("2d");
+    ctx.scale(S,S);
+
+    const rr=(x,y,w,h2,r,fill,stroke)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h2-r);ctx.quadraticCurveTo(x+w,y+h2,x+w-r,y+h2);ctx.lineTo(x+r,y+h2);ctx.quadraticCurveTo(x,y+h2,x,y+h2-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.stroke();}};
+    const txt=(str,x,y,opt={})=>{ctx.font=opt.font||"14px sans-serif";ctx.fillStyle=opt.color||"#1a3a0e";ctx.textAlign=opt.align||"left";ctx.textBaseline="top";if(opt.mw)ctx.fillText(str,x,y,opt.mw);else ctx.fillText(str,x,y);};
+    const pbox=(x,y,w,icon,label,val,unit,warn)=>{const bg=warn?"#FFF8E8":"#F0F8E8",bd=warn?"#E8C840":"#7CB342",vc=warn?"#B8860B":"#2E7D32";rr(x,y,w,68,10,bg,bd);txt(icon,x+12,y+16,{font:"18px sans-serif",color:"#666"});txt(label,x+36,y+12,{font:"bold 11px sans-serif",color:"#777"});txt(val,x+36,y+30,{font:"bold 18px monospace",color:vc});ctx.font="bold 18px monospace";const vw=ctx.measureText(val).width;txt(unit,x+36+vw+4,y+34,{font:"11px sans-serif",color:"#999"});};
+
+    ctx.fillStyle="#F5F0E0";ctx.fillRect(0,0,W,H);
+    rr(8,8,W-16,H-16,16,null,"#C8D8A8");
+    let cy=pad;
+
+    const hg=ctx.createLinearGradient(pad,cy,pad+cw,cy);hg.addColorStop(0,"#4A8C3F");hg.addColorStop(1,"#6BAF5B");
+    rr(pad,cy,cw,64,12,null,null);ctx.fillStyle=hg;ctx.fill();
+    rr(pad+14,cy+12,40,40,9,"#FFD54F");
+    txt("T",pad+24,cy+17,{font:"bold 24px sans-serif",color:"#5D4037"});
+    txt("DJI T25 撒肥參數",pad+64,cy+14,{font:"bold 18px sans-serif",color:"#fff"});
+    const sub=[d.fieldName,d.fertName].filter(Boolean).join(" | ");
+    if(sub)txt(sub,pad+64,cy+38,{font:"12px sans-serif",color:"rgba(255,255,255,0.85)",mw:cw-150});
+    txt(dateStr,pad+cw-14,cy+16,{font:"bold 11px sans-serif",color:"rgba(255,255,255,0.7)",align:"right"});
+    cy+=76;
+
+    // Field info box
+    rr(pad,cy,cw,48,8,"#FAFAF0","#C8D8A8");
+    const iw=cw/4;
+    txt("地塊",pad+10,cy+6,{font:"bold 10px sans-serif",color:"#999"});
+    txt((d.fieldArea||"--")+" 畝",pad+10,cy+22,{font:"bold 14px monospace",color:"#2E7D32"});
+    txt("作業",pad+iw+10,cy+6,{font:"bold 10px sans-serif",color:"#999"});
+    txt((d.workArea||"--")+" 畝",pad+iw+10,cy+22,{font:"bold 14px monospace",color:"#2E7D32"});
+    txt("每分用量",pad+iw*2+10,cy+6,{font:"bold 10px sans-serif",color:"#999"});
+    txt((d.perFenKg||"--")+" kg",pad+iw*2+10,cy+22,{font:"bold 14px monospace",color:"#2E7D32"});
+    txt("肥料",pad+iw*3+10,cy+6,{font:"bold 10px sans-serif",color:"#999"});
+    txt(d.fertName||"--",pad+iw*3+10,cy+22,{font:"bold 12px sans-serif",color:"#2E7D32",mw:iw-20});
+    cy+=58;
+
+    txt("● 正常航線",pad+4,cy,{font:"bold 13px sans-serif",color:"#4A8C3F"});cy+=24;
+    const bw3=(cw-16)/3;
+    pbox(pad,cy,bw3,"▸","飛行速度",d.speed,"m/s");
+    pbox(pad+bw3+8,cy,bw3,"↕","飛行高度",d.height,"m");
+    pbox(pad+(bw3+8)*2,cy,bw3,"⟳","轉速",d.rpm,"rpm");cy+=76;
+    pbox(pad,cy,bw3,"≡","行距",d.swath,"m");
+    if(d.ratePerMu)pbox(pad+bw3+8,cy,bw3,"⊙","畝用量",d.ratePerMu,"kg/畝");
+    if(d.b12)pbox(pad+(bw3+8)*2,cy,bw3,"◉","播撒畝用量",d.b12,"kg/畝");
+    cy+=76;
+
+    if(d.speedNote){cy+=4;rr(pad,cy,cw,32,6,"#F0F8E8","#B8D4A0");txt("⚡ "+d.speedNote,pad+10,cy+8,{font:"11px sans-serif",color:"#5a7a42",mw:cw-20});cy+=40;}
+    cy+=10;
+
+    txt("● 掃邊 / 邊界航線",pad+4,cy,{font:"bold 13px sans-serif",color:"#B8860B"});cy+=24;
+    pbox(pad,cy,bw3,"⟳","掃邊轉速",d.rpmEdge,"rpm",true);
+    pbox(pad+bw3+8,cy,bw3,"↔","內縮",d.inset,"m",true);
+    pbox(pad+(bw3+8)*2,cy,bw3,"◎","模式",d.scanMode,"",true);cy+=82;
+
+    rr(pad,cy,cw,100,10,"#FAFAF0","#C8D8A8");
+    txt("正常 vs 掃邊 對照",pad+14,cy+10,{font:"bold 12px sans-serif",color:"#777"});
+    const ty0=cy+32;const c=[pad+14,pad+cw*0.38,pad+cw*0.58,pad+cw*0.78];
+    txt("參數",c[0],ty0,{font:"bold 11px sans-serif",color:"#999"});
+    txt("正常",c[1],ty0,{font:"bold 11px sans-serif",color:"#2E7D32",align:"center"});
+    txt("掃邊",c[2],ty0,{font:"bold 11px sans-serif",color:"#B8860B",align:"center"});
+    txt("差異",c[3],ty0,{font:"bold 11px sans-serif",color:"#999",align:"center"});
+    const ry1=ty0+22;ctx.fillStyle="#F0F8E8";ctx.fillRect(pad+6,ry1-2,cw-12,20);
+    txt("轉速",c[0],ry1,{font:"12px sans-serif",color:"#555"});
+    txt(d.rpm,c[1],ry1,{font:"bold 13px monospace",color:"#2E7D32",align:"center"});
+    txt(d.rpmEdge,c[2],ry1,{font:"bold 13px monospace",color:"#B8860B",align:"center"});
+    const rd=(parseFloat(d.rpmEdge)||0)-(parseFloat(d.rpm)||0);
+    txt(rd===0?"—":(rd>0?"+":"")+rd,c[3],ry1,{font:"bold 13px monospace",color:rd<0?"#C62828":"#1565C0",align:"center"});
+    const ry2=ry1+24;txt("內縮",c[0],ry2,{font:"12px sans-serif",color:"#555"});
+    txt("—",c[1],ry2,{font:"bold 13px monospace",color:"#ccc",align:"center"});
+    txt(d.inset+" m",c[2],ry2,{font:"bold 13px monospace",color:"#B8860B",align:"center"});
+    txt("—",c[3],ry2,{font:"bold 13px monospace",color:"#ccc",align:"center"});cy+=108;
+
+    if(d.note){cy+=4;rr(pad,cy,cw,36,8,"#FFF8E8","#E8C840");txt("📝 "+d.note,pad+10,cy+10,{font:"11px sans-serif",color:"#8B7000",mw:cw-20});cy+=44;}
+    cy+=4;rr(pad,cy,cw,40,8,"#FFF8E8","#E8C840");txt("💨 風向提醒：若風往鄰田方向吹，首末航線外飄會加劇。建議微風時作業。",pad+10,cy+12,{font:"11px sans-serif",color:"#8B7000",mw:cw-20});cy+=48;
+    txt("DJI T25 Fertilizer Params · "+dateStr,W/2,cy,{font:"10px sans-serif",color:"#bbb",align:"center"});
+    return canvas;
+  }
+
+  function t25GetDate(){const n=new Date();return n.getFullYear()+"/"+String(n.getMonth()+1).padStart(2,"0")+"/"+String(n.getDate()).padStart(2,"0");}
+
+  $("btnT25Preview").addEventListener("click",()=>{
+    const canvas=drawT25(getT25Data(),t25GetDate());
+    $("t25PreviewImg").src=canvas.toDataURL("image/png");
+    $("t25PreviewArea").style.display="block";
+  });
+
+  $("btnT25Export").addEventListener("click",()=>{
+    const d=getT25Data();const canvas=drawT25(d,t25GetDate());const url=canvas.toDataURL("image/png");
+    const win=window.open("","_blank");
+    if(win){win.document.write(`<!DOCTYPE html><html><head><title>T25 撒肥參數</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:#F5F0E0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:sans-serif;padding:20px;box-sizing:border-box}img{max-width:95vw;max-height:80vh;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.15)}p{color:#777;font-size:14px;margin-top:16px}a{display:inline-block;margin-top:12px;padding:14px 32px;background:#4A8C3F;color:#fff;text-decoration:none;border-radius:10px;font-weight:bold;font-size:15px}</style></head><body><img src="${url}" alt="T25 撒肥參數" /><p>長按圖片儲存，或點擊下方按鈕下載</p><a href="${url}" download="T25撒肥參數_${d.fieldName||"設定"}_${new Date().toISOString().slice(0,10)}.png">⬇ 下載 PNG 圖片</a></body></html>`);win.document.close();}
+    else{const a=document.createElement("a");a.href=url;a.download=`T25撒肥參數_${d.fieldName||"設定"}.png`;document.body.appendChild(a);a.click();a.remove();}
+  });
+
+  $("btnT25Clear").addEventListener("click",()=>{
+    ["T_fieldName","T_B4","T_B5","T_B8","T_note"].forEach(id=>{if($(id))$(id).value="";});
+    $("T_B7").value="10";$("T_D7").value="40";$("T_B9").value="40";
+    $("T_fertName").value="複合肥";
+    $("T_ratePerMu").value="10";$("T_speed").value="5.0";$("T_height").value="3.0";
+    $("T_rpm").value="920";$("T_swath").value="5.0";
+    $("T_rpmEdge").value="680";$("T_inset").value="1.6";
+    $("T_scanMode").value="自動掃邊";
+    $("T_speedNote").value="畝用量越大，飛行速度相對會變慢";
+    $("t25PreviewArea").style.display="none";
+    computeT25();
+  });
+
+  computeT25();
+
+})();
+</script>
+</body>
+</html>
